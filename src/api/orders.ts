@@ -9,7 +9,7 @@ import { apiClient } from "./client";
  *
  *   GET  /api/payment/config                     → پیکربندی درگاه‌ها
  *   POST /api/payment/orders                     → ساخت سفارش (و کاهش موجودی)
- *   POST /api/payment/zibal/request              → لینک پرداخت آنلاین
+ *   POST /api/payment/payping/request            → لینک پرداخت آنلاین (PayPing)
  *   POST /api/payment/card-to-card/submit        → ارسال تصویر رسید
  *
  * نکته مهم: `items[].productId` باید شناسه واقعی محصول در دیتابیس باشد؛
@@ -26,10 +26,10 @@ export interface CardToCardConfig {
 export interface PaymentConfig {
   storeName?: string;
   cardToCard: CardToCardConfig;
-  zibalEnabled: boolean;
+  paypingEnabled: boolean;
 }
 
-export type PaymentMethod = "zibal" | "card";
+export type PaymentMethod = "payping" | "card";
 
 export interface OrderLineInput {
   productId: string;
@@ -79,8 +79,8 @@ export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder
 }
 
 /** درخواست پرداخت آنلاین؛ آدرسی که مرورگر باید به آن برود. */
-export async function requestZibalPayment(orderId: string): Promise<string> {
-  const { data } = await apiClient.post<{ paymentUrl: string }>("/payment/zibal/request", { orderId }, { withCredentials: true });
+export async function requestPayPingPayment(orderId: string): Promise<string> {
+  const { data } = await apiClient.post<{ paymentUrl: string }>("/payment/payping/request", { orderId }, { withCredentials: true });
   return data.paymentUrl;
 }
 
@@ -119,12 +119,29 @@ export function fileToDataUrl(file: File): Promise<string> {
 
 /**
  * نتیجه‌ای که درگاه پس از بازگشت در آدرس می‌گذارد.
- * بک‌اند به `${FRONTEND_URL}/?payment=success|failed` ریدایرکت می‌کند
- * (`zibalCallback`)، پس این پارامتر روی هر صفحه‌ای ممکن است دیده شود.
+ * بک‌اند به `${FRONTEND_URL}/?payment=<نتیجه>` ریدایرکت می‌کند
+ * (`payPingCallback`)، پس این پارامتر روی هر صفحه‌ای ممکن است دیده شود.
+ *
+ *   success              → پرداخت تأیید و سفارش نهایی شد
+ *   failed               → پرداخت تأیید نشد
+ *   refund_pending       → پرداخت تأیید شد ولی موجودی نبود؛ بازپرداخت در صف بررسی
+ *   processing           → درگاه هنوز نتیجه را قطعی نکرده؛ پیگیری دستی ثبت شده
+ *   verification_pending → درگاه پرداخت را قبلاً تأیید کرده؛ تطبیق دستی ثبت شده
  */
-export function paymentOutcomeFromUrl(search: string): "success" | "failed" | "refund_pending" | null {
+export type PaymentOutcomeKind = "success" | "failed" | "refund_pending" | "processing" | "verification_pending";
+const PAYMENT_OUTCOMES: readonly string[] = ["success", "failed", "refund_pending", "processing", "verification_pending"];
+export function paymentOutcomeFromUrl(search: string): PaymentOutcomeKind | null {
   const outcome = new URLSearchParams(search).get("payment");
-  return outcome === "success" || outcome === "failed" || outcome === "refund_pending" ? outcome : null;
+  return outcome && PAYMENT_OUTCOMES.includes(outcome) ? (outcome as PaymentOutcomeKind) : null;
+}
+
+/** کد خطای ماشینی بک‌اند (مثل CAPTCHA_REQUIRED) یا رشتهٔ خالی. */
+export function errorCodeFrom(error: unknown): string {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const code = (error as { response?: { data?: { code?: unknown } } }).response?.data?.code;
+    if (typeof code === "string") return code;
+  }
+  return "";
 }
 
 /** پیام خطای سرور را استخراج می‌کند و در نبود آن، پیام پیش‌فرض را برمی‌گرداند. */
@@ -135,15 +152,6 @@ export function errorMessageFrom(error: unknown, fallback = "ارتباط با �
     if (typeof message === "string" && message.trim()) return message;
   }
   return fallback;
-}
-
-/** کد خطای ماشینی سرور (مثل `CAPTCHA_REQUIRED`) یا `null`. */
-export function errorCodeFrom(error: unknown): string | null {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const code = (error as { response?: { data?: { code?: unknown } } }).response?.data?.code;
-    if (typeof code === "string" && code.trim()) return code;
-  }
-  return null;
 }
 
 export async function requestCheckoutOtp(phone: string, captchaToken?: string): Promise<string> {

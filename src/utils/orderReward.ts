@@ -1,10 +1,6 @@
 /**
- * «سفارش در انتظار نتیجه پرداخت».
- *
- * پرداخت آنلاین زیبال مرورگر را به درگاه می‌برد و بک‌اند پس از تأیید، کاربر را
- * به `${FRONTEND_URL}/?payment=success` برمی‌گرداند. آن لحظه دیگر هیچ state
- * زنده‌ای از سبد باقی نمانده، پس مبلغ و شماره تماس پیش از رفتن به درگاه اینجا
- * ذخیره می‌شود تا بعد از بازگشت بتوان امتیاز باشگاه را ثبت و سبد را خالی کرد.
+ * Stores an order while the customer is away completing an online payment.
+ * The record lets the site restore the order context after the gateway returns.
  */
 export interface PendingOrderReward {
   /** شناسه سفارش در دیتابیس؛ برای تلاش دوباره به‌جای ساخت سفارش تکراری. */

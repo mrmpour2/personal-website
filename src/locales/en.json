@@ -353,7 +353,7 @@
     "address": "Delivery address",
     "addressPlaceholder": "Street, building, unit",
     "payment": "Payment method",
-    "zibal": "Pay online",
+    "payping": "Pay online",
     "card": "Card to card",
     "cardNumber": "Card number",
     "cardOwner": "Account holder",
@@ -362,7 +362,7 @@
     "receiptHint": "JPG, PNG or WebP up to 7 MB.",
     "reference": "Transfer reference (optional)",
     "total": "Total to pay",
-    "submitZibal": "Place order and pay",
+    "submitPayping": "Place order and pay",
     "submitCard": "Place order",
     "submitReceipt": "Send receipt",
     "busy": "Placing your order...",
@@ -383,6 +383,8 @@
     "staleOrder": "Your order changed after the first submission — submitting again creates a fresh order with the final amount."
   },
   "payment": {
+    "refundPending": "Payment verified. A refund and support case were recorded because stock was unavailable.",
+    "processing": "Your payment is being confirmed. Support will follow up; please do not pay again.",
     "success": "Payment confirmed. Your order is on its way to the grill.",
     "failed": "Payment was not confirmed. If money left your account, contact us.",
     "pointsAuto": "Club points are added automatically once the restaurant confirms your payment.",
