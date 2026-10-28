@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { startMotionSystem } from "@/motion/motionSystem";
 
 /**
  * Boots the data-attribute driven GSAP motion system once per page load.
@@ -8,7 +7,20 @@ import { startMotionSystem } from "@/motion/motionSystem";
  */
 export function useMotionSystem(): void {
   useEffect(() => {
-    const controller = startMotionSystem();
-    return () => controller.destroy();
+    let destroyed = false;
+    let cleanup: (() => void) | undefined;
+
+    void import("@/motion/motionSystem")
+      .then(({ startMotionSystem }) => {
+        if (destroyed) return;
+        const controller = startMotionSystem();
+        cleanup = () => controller.destroy();
+      })
+      .catch(() => undefined);
+
+    return () => {
+      destroyed = true;
+      cleanup?.();
+    };
   }, []);
 }

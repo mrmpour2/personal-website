@@ -6,5 +6,20 @@ import { startSmoothScroll } from "@/motion/smoothScroll";
  * The effect returns Lenis' own cleanup, so React owns the teardown.
  */
 export function useSmoothScroll(): void {
-  useEffect(() => startSmoothScroll(), []);
+  useEffect(() => {
+    let destroyed = false;
+    let cleanup: (() => void) | undefined;
+
+    void import("@/motion/smoothScroll")
+      .then(({ startSmoothScroll }) => {
+        if (destroyed) return;
+        cleanup = startSmoothScroll();
+      })
+      .catch(() => undefined);
+
+    return () => {
+      destroyed = true;
+      cleanup?.();
+    };
+  }, []);
 }

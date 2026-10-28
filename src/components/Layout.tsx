@@ -8,17 +8,24 @@ import { Navbar } from "@/components/Navbar";
 import { AddOnPanelProvider } from "@/context/AddOnContext";
 import { useMotionSystem } from "@/hooks/useMotionSystem";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
-import { refreshMotion, scrollToTop } from "@/motion/smoothScroll";
 
 const ChatBox = lazy(() => import("@/components/ChatBox"));
 
 function ScrollManager() {
   const { pathname } = useLocation();
   useEffect(() => {
-    // Lenis owns the scroll position once it is running, so a route change goes
-    // through it and every trigger is re-measured against the new page.
-    scrollToTop();
-    refreshMotion();
+    let cancelled = false;
+    void import("@/motion/smoothScroll")
+      .then(({ refreshMotion, scrollToTop }) => {
+        if (cancelled) return;
+        scrollToTop();
+        refreshMotion();
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
   return null;
 }
@@ -40,8 +47,9 @@ export function Layout() {
       language === "fa"
         ? "شیش برگر الین | برگر برای شب‌های بیرجند"
         : "شیش برگر الین | Built for the next bite";
-    // `dir` flips the reveal direction and every pinned/parallax measurement.
-    refreshMotion();
+    void import("@/motion/smoothScroll")
+      .then(({ refreshMotion }) => refreshMotion())
+      .catch(() => undefined);
   }, [language]);
 
   useEffect(() => {
