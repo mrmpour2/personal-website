@@ -24,5 +24,17 @@ export default defineConfig({
   },
   build: {
     target: "es2020",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (/\/(?:react|react-dom|scheduler)\//.test(id)) return "vendor-react";
+          if (/\/(?:framer-motion|motion-dom|motion-utils)\//.test(id)) return "vendor-motion";
+          if (/\/(?:gsap|lenis)\//.test(id)) return "vendor-scroll-motion";
+          if (id.includes("/lucide-react/")) return "vendor-icons";
+        },
+      },
+    },
   },
 });
