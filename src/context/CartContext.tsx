@@ -1,6 +1,8 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { defaultVariant, findVariant, itemVariants } from "@/data/content";
 import type { LocalizedText, MenuItem, MenuItemVariant } from "@/types";
+import { apiBaseUrl } from "@/api/client";
+import { getChatSessionId } from "@/utils/session";
 
 /**
  * سبد خرید سراسری سایت.
@@ -207,6 +209,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       // storage پر/مسدود: سبد فقط در همین نشست زنده می‌ماند.
     }
+  }, [lines]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetch(`${apiBaseUrl}/public/cart`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: getChatSessionId(),
+          items: lines.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })),
+        }),
+        credentials: "same-origin",
+      }).catch(() => undefined);
+    }, 500);
+    return () => window.clearTimeout(timer);
   }, [lines]);
 
   const addItem = useCallback((item: MenuItem, quantity = 1, variantKey?: string) => {

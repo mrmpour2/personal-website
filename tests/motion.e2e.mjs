@@ -23,7 +23,7 @@
  */
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import { createServer, request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -402,13 +402,12 @@ const ROUTES = [
     url: "/loyalty",
     width: 1440,
     require: {
-      "data-progress-bar": 1,
       "data-reveal-group": 1,
       "data-reveal-item": 1,
       "data-motion-text": 1,
-      "data-magnetic": 1,
     },
-    animated: [{ target: "data-progress-bar", contains: ["transform"] }],
+    absent: ["data-progress-bar", "data-magnetic"],
+    present: ['id="club-account"', 'id="club-tiers"'],
   },
   {
     name: "blog",
@@ -517,6 +516,13 @@ function audit(route, dom) {
       claimed <= maximum,
       `claimed ${claimed}`,
     );
+  }
+
+  for (const target of route.absent ?? []) {
+    check(`${label}: ${target} is intentionally absent from the logged-out loyalty page`, tagsWith(markup, target).length === 0);
+  }
+  for (const fragment of route.present ?? []) {
+    check(`${label}: ${fragment} is rendered in the loyalty account section`, markup.includes(fragment));
   }
 
   for (const evidence of route.animated ?? []) {
@@ -650,12 +656,14 @@ try {
   console.log("[motion] reduced-motion pass checked");
 
   const shell = await readFile(path.join(distDir, "index.html"), "utf8");
+  const styleFiles = (await readdir(path.join(distDir, "assets"))).filter((file) => file.endsWith(".css"));
+  const styles = (await Promise.all(styleFiles.map((file) => readFile(path.join(distDir, "assets", file), "utf8")))).join("\n");
   check(
     "bundle: hidden-state CSS shipped",
-    shell.includes("has-motion [data-motion-text]"),
+    styles.includes("has-motion [data-motion-text]"),
   );
-  check("bundle: word-mask CSS shipped", shell.includes("motion-word-mask"));
-  check("bundle: smooth-scroll CSS shipped", shell.includes("lenis"));
+  check("bundle: word-mask CSS shipped", styles.includes("motion-word-mask"));
+  check("bundle: smooth-scroll CSS shipped", styles.includes("lenis"));
 } finally {
   server.close();
   await rm(profilesRoot, { recursive: true, force: true });

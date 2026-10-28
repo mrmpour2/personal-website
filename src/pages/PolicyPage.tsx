@@ -62,6 +62,7 @@ const policies = {
         "اشتراک‌گذاری محدود به ارائه‌دهندهٔ پیامک برای OTP، پیک/سرویس ارسال برای تحویل، و میزبانی فنی در حد نیاز است. نام حقوقی، محل پردازش و قرارداد هر ارائه‌دهنده: نیاز به مقدار واقعی.",
         "کوکی ضروری checkout برای اثبات تأیید شماره و ترجیحات رابط استفاده می‌شود. ابزار تحلیل/تبلیغات: نیاز به تصمیم واقعی؛ تا آن زمان فعال فرض نمی‌شود.",
         "کاربر می‌تواند درخواست دسترسی، اصلاح یا حذف داده‌های قابل حذف را ثبت کند. تماس حریم خصوصی: mr.mpour72@gmail.com؛ تلفن: 05632420101؛ نشانی: بیرجند، خیابان پاسداران، تقاطع ۱۵ خرداد؛ کدپستی: 9719816920.",
+        "برای ثبت سبد رهاشده، شناسه تصادفی نشست، شناسه و تعداد محصولات، مبلغ محاسبه‌شده از قیمت‌های سامانه و زمان آخرین فعالیت ذخیره می‌شود؛ نام، تلفن، نشانی یا ایمیل در این رکورد ذخیره نمی‌شود. شناسه نشست به شکل هش نگهداری می‌شود. سبد پس از ۳۰ دقیقه بی‌فعالیتی رهاشده محسوب می‌شود و برای تحلیل مدیریتی نگهداری می‌شود؛ مدت حذف نهایی این رکوردها: نیازمند تعیین مقدار واقعی.",
       ],
     },
     en: {
@@ -74,6 +75,7 @@ const policies = {
         "Limited sharing may be needed with the SMS provider for OTP, courier/delivery service, and technical hosting. Legal entity, processing location, and provider contracts: needs verified values.",
         "Essential checkout proof and interface-preference cookies are used. Analytics/advertising tools: a real decision is required and none are assumed active here.",
         "Users may request access, correction, or deletion where applicable. Privacy contact: mr.mpour72@gmail.com; phone: 05632420101; address: Pasdaran Street, 15 Khordad intersection, Birjand; postal code: 9719816920.",
+        "Abandoned-cart tracking stores a random session identifier, product identifiers and quantities, a total calculated from catalog prices, and the last activity time. It does not store a name, phone number, address, or email in the cart record. The session identifier is stored as a hash. A cart is considered abandoned after 30 minutes of inactivity; final deletion retention for these records: needs a verified value.",
       ],
     },
   },
