@@ -5,7 +5,6 @@ import { AddOnSheet } from "@/components/AddOnSheet";
 import { CartDrawer } from "@/components/CartDrawer";
 import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
-import { PaymentOutcome } from "@/components/PaymentOutcome";
 import { AddOnPanelProvider } from "@/context/AddOnContext";
 import { useMotionSystem } from "@/hooks/useMotionSystem";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
@@ -65,7 +64,6 @@ export function Layout() {
         <CartDrawer />
         <AddOnSheet />
       </AddOnPanelProvider>
-      <PaymentOutcome />
       {/* Pointer follower for `initCursor`; purely decorative. */}
       <div data-cursor="" aria-hidden="true">
         <span data-cursor-label="" />

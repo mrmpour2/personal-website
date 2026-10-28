@@ -1,35 +1,29 @@
 import { apiClient } from "./client";
 
 /**
- * لایه سفارش و پرداخت وب‌سایت مهمان.
+ * لایه سفارش وب‌سایت مهمان.
  *
  * این ماژول همان مسیرهای عمومی را صدا می‌زند که دستیار گفتگو هم استفاده می‌کند
  * (`dashboard/backend/src/routes/paymentRoutes.js`) تا سبد خرید سایت و سبد
  * داخل گفتگو یک رفتار داشته باشند:
  *
- *   GET  /api/payment/config                     → پیکربندی درگاه‌ها
+ *   GET  /api/payment/config                     → وضعیت dargah
  *   POST /api/payment/orders                     → ساخت سفارش (و کاهش موجودی)
- *   POST /api/payment/payping/request            → لینک پرداخت آنلاین (PayPing)
- *   POST /api/payment/card-to-card/submit        → ارسال تصویر رسید
  *
  * نکته مهم: `items[].productId` باید شناسه واقعی محصول در دیتابیس باشد؛
  * سرور وجود و فعال بودن محصول و کافی بودن موجودی را بررسی می‌کند.
  */
 
-export interface CardToCardConfig {
-  enabled: boolean;
-  cardNumber: string | null;
-  ownerName: string | null;
-  bankName: string | null;
-}
-
 export interface PaymentConfig {
   storeName?: string;
-  cardToCard: CardToCardConfig;
-  paypingEnabled: boolean;
+  dargah: { enabled: false };
+  cod: { enabled: boolean; methods: Array<"cash" | "pos"> };
+  deliveryFeeToman: number;
+  vatRateBps: number;
+  currency: "TOMAN";
 }
 
-export type PaymentMethod = "payping" | "card";
+export type PaymentMethod = "CASH_ON_DELIVERY";
 
 export interface OrderLineInput {
   productId: string;
@@ -62,6 +56,8 @@ export interface CreatedOrder {
   orderNumber: string;
   status: string;
   totalAmount: number;
+  deliveryFeeAmount: number;
+  taxAmount: number;
   currency: string;
   expiresAt: string;
 }
@@ -76,63 +72,6 @@ export async function fetchPaymentConfig(): Promise<PaymentConfig> {
 export async function createOrder(input: CreateOrderInput): Promise<CreatedOrder> {
   const { data } = await apiClient.post<{ order: CreatedOrder }>("/payment/orders", input, { withCredentials: true, headers: { "Idempotency-Key": input.idempotencyKey } });
   return data.order;
-}
-
-/** درخواست پرداخت آنلاین؛ آدرسی که مرورگر باید به آن برود. */
-export async function requestPayPingPayment(orderId: string): Promise<string> {
-  const { data } = await apiClient.post<{ paymentUrl: string }>("/payment/payping/request", { orderId }, { withCredentials: true });
-  return data.paymentUrl;
-}
-
-/**
- * ارسال رسید کارت‌به‌کارت.
- *
- * تصویر به‌صورت data URL فرستاده می‌شود و سقف بدنه ۷ مگابایت است، پس مهلت
- * درخواست از ۱۰ ثانیه پیش‌فرض بیشتر گرفته می‌شود.
- */
-export async function submitCardReceipt(
-  orderId: string,
-  imageData: string,
-  transferReference?: string,
-): Promise<string> {
-  const reference = transferReference?.trim();
-  const { data } = await apiClient.post<{ payment: { message: string } }>(
-    "/payment/card-to-card/submit",
-    { orderId, imageData, ...(reference ? { transferReference: reference } : {}) },
-    { timeout: 45000, withCredentials: true },
-  );
-  return data.payment.message;
-}
-
-/** تبدیل فایل رسید به data URL (همان قالب مورد انتظار سرور). */
-export function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () =>
-      typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new Error("receipt-unreadable"));
-    reader.onerror = () => reject(new Error("receipt-unreadable"));
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * نتیجه‌ای که درگاه پس از بازگشت در آدرس می‌گذارد.
- * بک‌اند به `${FRONTEND_URL}/?payment=<نتیجه>` ریدایرکت می‌کند
- * (`payPingCallback`)، پس این پارامتر روی هر صفحه‌ای ممکن است دیده شود.
- *
- *   success              → پرداخت تأیید و سفارش نهایی شد
- *   failed               → پرداخت تأیید نشد
- *   refund_pending       → پرداخت تأیید شد ولی موجودی نبود؛ بازپرداخت در صف بررسی
- *   processing           → درگاه هنوز نتیجه را قطعی نکرده؛ پیگیری دستی ثبت شده
- *   verification_pending → درگاه پرداخت را قبلاً تأیید کرده؛ تطبیق دستی ثبت شده
- */
-export type PaymentOutcomeKind = "success" | "failed" | "refund_pending" | "processing" | "verification_pending";
-const PAYMENT_OUTCOMES: readonly string[] = ["success", "failed", "refund_pending", "processing", "verification_pending"];
-export function paymentOutcomeFromUrl(search: string): PaymentOutcomeKind | null {
-  const outcome = new URLSearchParams(search).get("payment");
-  return outcome && PAYMENT_OUTCOMES.includes(outcome) ? (outcome as PaymentOutcomeKind) : null;
 }
 
 /** کد خطای ماشینی بک‌اند (مثل CAPTCHA_REQUIRED) یا رشتهٔ خالی. */
@@ -167,4 +106,13 @@ export async function readCheckoutOrder(orderId: string) {
 }
 export async function cancelCheckoutOrder(orderId: string) {
   await apiClient.post(`/payment/orders/${encodeURIComponent(orderId)}/cancel`, {}, { withCredentials: true });
+}
+
+export async function confirmCashOnDelivery(orderId: string) {
+  const { data } = await apiClient.post<{ order: CreatedOrder & { paymentMethod: PaymentMethod } }>(
+    `/payment/orders/${encodeURIComponent(orderId)}/confirm-cod`,
+    {},
+    { withCredentials: true },
+  );
+  return data.order;
 }

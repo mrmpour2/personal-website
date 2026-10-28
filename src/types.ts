@@ -56,6 +56,8 @@ export interface MenuItem {
   score?: number;
   featured?: boolean;
   ingredients: Record<Language, string[]>;
+  allergenInfo?: string;
+  purchaseConditions?: string;
   options: Record<Language, string[]>;
   /**
    * واریانت‌های قابل انتخاب (اندازه/بسته). خالی یا تعریف‌نشده یعنی آیتم فقط یک

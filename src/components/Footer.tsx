@@ -53,6 +53,9 @@ export function Footer() {
           <div className="mt-4 flex flex-col items-start gap-3 text-sm font-medium text-bun-muted">
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/menu">{t("nav.menu")}</Link>
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/checkout">{t("cart.title")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/shipping-policy">{t("policy.shippingTitle")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/return-policy">{t("policy.returnTitle")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/privacy-policy">{t("policy.privacyTitle")}</Link>
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/loyalty">{t("nav.loyalty")}</Link>
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/blog">{t("nav.blog")}</Link>
           </div>

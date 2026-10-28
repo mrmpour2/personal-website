@@ -243,6 +243,14 @@ export default function ProductPage() {
           </div>
         </MotionSection>
       ) : null}
+      {item.productId && (item.allergenInfo || item.purchaseConditions) ? (
+        <section className="bg-bun-paper py-10">
+          <div className="mx-auto max-w-7xl space-y-3 px-4 text-sm leading-7 text-bun-muted sm:px-6 lg:px-8">
+            {item.allergenInfo ? <p><strong>{t("product.allergens")}:</strong> {item.allergenInfo}</p> : null}
+            {item.purchaseConditions ? <p><strong>{t("product.purchaseConditions")}:</strong> {item.purchaseConditions}</p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <MotionSection className="bg-bun-ink py-16 text-white sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">

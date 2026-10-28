@@ -15,6 +15,8 @@ import { sanitizeInput } from "@/utils/sanitize";
 import { getChatSessionId } from "@/utils/session";
 import { cn } from "@/utils/cn";
 
+type QueuedChatMessage = { id: string; text: string };
+
 /**
  * دستیار گفتگوی شیش برگر الین.
  *
@@ -49,8 +51,26 @@ export default function ChatBox() {
   const [catalogStatus, setCatalogStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [addedId, setAddedId] = useState<string | null>(null);
   const sessionId = useMemo(() => getChatSessionId(), []);
+  const pendingKey = `elin-chat-pending:${sessionId}`;
+  const [pendingQueue, setPendingQueue] = useState<QueuedChatMessage[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(sessionStorage.getItem(pendingKey) ?? "[]");
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is QueuedChatMessage =>
+            item && typeof item.id === "string" && typeof item.text === "string" && item.text.length <= 4000,
+          ).slice(0, 10)
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const [chatHydrated, setChatHydrated] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
   const addedTimer = useRef<number | null>(null);
+  const sendingRef = useRef(false);
+  const blockedQueueItemRef = useRef<string | null>(null);
+  const wasLoadingRef = useRef(false);
 
   // زبان از طریق ref خوانده می‌شود تا transport یک‌بار ساخته شود ولی هر پیام با
   // آخرین زبان انتخاب‌شده برود (`body` می‌تواند تابع باشد).
@@ -68,7 +88,7 @@ export default function ChatBox() {
     [sessionId],
   );
 
-  const { messages, sendMessage, status, setMessages } = useChat({ transport });
+  const { messages, sendMessage, regenerate, status, setMessages, error, clearError } = useChat({ transport });
 
   const isLoading = status === "streaming" || status === "submitted";
 
@@ -96,6 +116,7 @@ export default function ChatBox() {
           : [];
         if (stored.length === 0) {
           setMessages([greeting()]);
+          setChatHydrated(true);
           return;
         }
         setMessages(
@@ -105,15 +126,63 @@ export default function ChatBox() {
             parts: [{ type: "text" as const, text: message.content }],
           })),
         );
+        setChatHydrated(true);
       })
       .catch(() => {
-        if (!cancelled) setMessages([greeting()]);
+        if (!cancelled) {
+          setMessages([greeting()]);
+          setChatHydrated(true);
+        }
       });
 
     return () => {
       cancelled = true;
     };
   }, [language, sessionId, setMessages, t]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(pendingKey, JSON.stringify(pendingQueue));
+    } catch {
+      return;
+    }
+  }, [pendingKey, pendingQueue]);
+
+  useEffect(() => {
+    if (isLoading) {
+      wasLoadingRef.current = true;
+      return;
+    }
+    if (error && pendingQueue.length > 0) {
+      blockedQueueItemRef.current = pendingQueue[0].id;
+      sendingRef.current = false;
+      wasLoadingRef.current = false;
+      return;
+    }
+    if (wasLoadingRef.current && messages.at(-1)?.role === "assistant" && pendingQueue.length > 0) {
+      setPendingQueue((queue) => queue.slice(1));
+      blockedQueueItemRef.current = null;
+      sendingRef.current = false;
+      wasLoadingRef.current = false;
+    }
+  }, [error, isLoading, messages, pendingQueue]);
+
+  useEffect(() => {
+    const nextMessage = pendingQueue[0];
+    if (!chatHydrated || !nextMessage || isLoading || error || sendingRef.current) return;
+    if (blockedQueueItemRef.current === nextMessage.id) return;
+
+    sendingRef.current = true;
+    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+    const request = lastUserMessage && messageText(lastUserMessage) === nextMessage.text
+      ? regenerate()
+      : sendMessage({ text: nextMessage.text });
+    void request.catch(() => {
+      blockedQueueItemRef.current = nextMessage.id;
+      sendingRef.current = false;
+      wasLoadingRef.current = false;
+    });
+  }, [chatHydrated, error, isLoading, messages, pendingQueue, regenerate, retryAttempt, sendMessage]);
 
   // فهرست زنده از همان کش صفحه منو می‌آید، پس درخواست تکراری زده نمی‌شود.
   const toggleCatalog = useCallback(() => {
@@ -154,11 +223,19 @@ export default function ChatBox() {
 
   const send = useCallback(() => {
     const value = sanitizeInput(input.trim());
-    if (!value || isLoading) return;
+    if (!value || pendingQueue.length >= 10) return;
 
-    sendMessage({ text: value });
+    setPendingQueue((queue) => [...queue, { id: crypto.randomUUID(), text: value }]);
     setInput("");
-  }, [input, isLoading, sendMessage]);
+  }, [input, pendingQueue.length]);
+
+  const retryPending = useCallback(() => {
+    if (pendingQueue.length === 0 || isLoading) return;
+    clearError();
+    blockedQueueItemRef.current = null;
+    sendingRef.current = false;
+    setRetryAttempt((attempt) => attempt + 1);
+  }, [clearError, isLoading, pendingQueue.length]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -306,6 +383,17 @@ export default function ChatBox() {
                 );
               })}
 
+              {error || pendingQueue.length > 0 ? (
+                <div role={error ? "alert" : "status"} className="space-y-2 rounded-xl bg-bun-surface p-3 text-xs text-bun-text">
+                  <p>{error ? t("chat.sendError") : t("chat.pending", { count: pendingQueue.length })}</p>
+                  {pendingQueue.length > 0 && !isLoading ? (
+                    <Button type="button" size="sm" variant="secondary" onClick={retryPending}>
+                      {t("chat.retry")}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+
               {isLoading && messages.at(-1)?.role === "user" ? (
                 <div
                   className="flex w-fit items-center gap-1 rounded-2xl bg-bun-surface px-4 py-3"
@@ -350,7 +438,7 @@ export default function ChatBox() {
               <Button
                 type="submit"
                 size="icon"
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || pendingQueue.length >= 10}
                 aria-label={t("chat.send")}
               >
                 <Send

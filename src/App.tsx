@@ -11,6 +11,7 @@ const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"));
 const LoyaltyPage = lazy(() => import("@/pages/LoyaltyPage"));
 const BlogPage = lazy(() => import("@/pages/BlogPage"));
 const BlogPostPage = lazy(() => import("@/pages/BlogPostPage"));
+const PolicyPage = lazy(() => import("@/pages/PolicyPage"));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 export default function App() {
@@ -24,6 +25,9 @@ export default function App() {
               <Route path="menu" element={<MenuPage />} />
               <Route path="menu/:id" element={<ProductPage />} />
               <Route path="checkout" element={<CheckoutPage />} />
+              <Route path="shipping-policy" element={<PolicyPage />} />
+              <Route path="return-policy" element={<PolicyPage />} />
+              <Route path="privacy-policy" element={<PolicyPage />} />
               <Route path="loyalty" element={<LoyaltyPage />} />
               <Route path="blog" element={<BlogPage />} />
               <Route path="blog/:id" element={<BlogPostPage />} />

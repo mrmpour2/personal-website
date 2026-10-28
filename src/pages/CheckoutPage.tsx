@@ -1,5 +1,5 @@
-import { CreditCard, ReceiptText, ShoppingBag, UploadCloud } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { ShoppingBag } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { PageIntro } from "@/components/PageIntro";
@@ -9,16 +9,14 @@ import { useCart } from "@/context/CartContext";
 import { useLoyalty } from "@/context/LoyaltyContext";
 import {
   createOrder,
+  confirmCashOnDelivery,
   requestCheckoutOtp,
   verifyCheckoutOtp,
   readCheckoutOrder,
   cancelCheckoutOrder,
   errorMessageFrom,
   fetchPaymentConfig,
-  fileToDataUrl,
-  requestPayPingPayment,
   errorCodeFrom,
-  submitCardReceipt,
   type PaymentConfig,
   type PaymentMethod,
 } from "@/api/orders";
@@ -29,14 +27,11 @@ import { isValidPhone } from "@/utils/phone";
 import { getChatSessionId } from "@/utils/session";
 import { cn } from "@/utils/cn";
 
-/** بزرگ‌ترین تصویر رسیدی که سرور می‌پذیرد (سقف بدنه ۷ مگابایت است). */
-const MAX_RECEIPT_BYTES = 7 * 1024 * 1024;
-
 /**
  * «اثر انگشت» سبد: کلید و تعداد هر سطر.
  *
  * سفارشی که ساخته می‌شود مبلغ و اقلام همان لحظه را قفل می‌کند؛ اگر مشتری بعد از
- * ساخت سفارش (مثلاً وقتی رسید کارت‌به‌کارت را نگرفته) چیزی به سبد اضافه یا کم
+ * ساخت سفارش چیزی به سبد اضافه یا کم
  * کند، باید سفارش تازه ساخته شود، وگرنه مبلغی که می‌بیند با سفارش ثبت‌شده فرق
  * می‌کند.
  */
@@ -73,6 +68,7 @@ type MessageTone = "error" | "info" | "success";
 
 interface CompletedOrder {
   orderNumber: string;
+  total: number;
 }
 
 export default function CheckoutPage() {
@@ -83,7 +79,7 @@ export default function CheckoutPage() {
 
   const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [configFailed, setConfigFailed] = useState(false);
-  const [method, setMethod] = useState<PaymentMethod>("payping");
+  const method: PaymentMethod = "CASH_ON_DELIVERY";
   const [name, setName] = useState(member?.name ?? "");
   const [phone, setPhone] = useState(member?.phone ?? "");
   const [email, setEmail] = useState("");
@@ -104,12 +100,10 @@ export default function CheckoutPage() {
     const key = crypto.randomUUID(); sessionStorage.setItem("checkout-idempotency", key); return key;
   });
   useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  const [receipt, setReceipt] = useState<File | null>(null);
-  const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: MessageTone; text: string } | null>(null);
   const [completed, setCompleted] = useState<CompletedOrder | null>(null);
-  /** سفارشی که ساخته شده و منتظر رسید کارت‌به‌کارت است (تا سفارش تکراری نسازیم). */
+  /** سفارش در حال پیگیری کاربر. */
   const [pendingOrder, setPendingOrder] = useState<{ id: string; orderNumber: string; total: number } | null>(null);
 
   useEffect(() => {
@@ -118,8 +112,6 @@ export default function CheckoutPage() {
       .then((value) => {
         if (!active) return;
         setConfig(value);
-        // اگر درگاه آنلاین خاموش باشد، کارت‌به‌کارت تنها گزینه است.
-        if (!value.paypingEnabled && value.cardToCard.enabled) setMethod("card");
       })
       .catch(() => {
         if (active) setConfigFailed(true);
@@ -129,7 +121,7 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  // سفارش نیمه‌کاره‌ای که از درگاه برگشته: همان را دوباره پرداخت می‌کنیم — ولی
+  // سفارش نیمه‌کاره: همان را دوباره پیگیری می‌کنیم — ولی
   // فقط اگر سبد همان سبد آن سفارش باشد؛ سبدِ عوض‌شده باید سفارش تازه بگیرد.
   useEffect(() => {
     const stored = peekPendingOrder();
@@ -152,9 +144,8 @@ export default function CheckoutPage() {
 
   const submitLabel = useMemo(() => {
     if (busy) return t("checkout.busy");
-    if (method === "payping") return t("checkout.submitPayping");
-    return receipt ? t("checkout.submitReceipt") : t("checkout.submitCard");
-  }, [busy, method, receipt, t]);
+    return t("checkout.submitCod");
+  }, [busy, t]);
 
   const canSubmit =
     lines.length > 0 &&
@@ -163,18 +154,7 @@ export default function CheckoutPage() {
     (!reservedCartKey || reservedCartKey === cartFingerprint(lines)) &&
     !busy &&
     config !== null &&
-    (method === "payping" ? config.paypingEnabled : config.cardToCard.enabled);
-
-  const onReceiptChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    if (file && file.size > MAX_RECEIPT_BYTES) {
-      setReceipt(null);
-      setMessage({ tone: "error", text: t("checkout.receiptHint") });
-      return;
-    }
-    setReceipt(file);
-    setMessage(null);
-  };
+    method === "CASH_ON_DELIVERY" && config.cod.enabled;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -241,42 +221,11 @@ export default function CheckoutPage() {
         rememberPendingOrder({ orderId: order.id, orderNumber: order.orderNumber, total: order.total, phone: phone.trim(), createdAt: new Date().toISOString(), cartKey: cartFingerprint(lines) });
       }
 
-      if (method === "payping") {
-        const paymentUrl = await requestPayPingPayment(order.id);
-        // نتیجه پرداخت روی صفحه اصلی برمی‌گردد (`?payment=success|failed`)، پس
-        // مبلغ و شماره تماس را ذخیره می‌کنیم تا امتیاز باشگاه گم نشود.
-        rememberPendingOrder({
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          total: order.total,
-          phone: phone.trim(),
-          createdAt: new Date().toISOString(),
-          cartKey: cartFingerprint(lines),
-        });
-        window.location.assign(paymentUrl);
-        return;
-      }
-
-      // کارت‌به‌کارت: اول سفارش رزرو می‌شود، بعد مشتری واریز و ارسال رسید را کامل می‌کند.
-      if (!receipt) {
-        setMessage({
-          tone: "info",
-          text: t("checkout.cardCreated", { orderNumber: order.orderNumber }),
-        });
-        return;
-      }
-
-      const imageData = await fileToDataUrl(receipt);
-      await submitCardReceipt(order.id, imageData, reference);
-      // امتیاز باشگاه پس از تأیید رسید و تبدیل سفارش به `PAID` در بک‌اند ثبت
-      // می‌شود؛ این‌جا هیچ امتیازی به حساب اضافه نمی‌کنیم.
-      setCompleted({ orderNumber: order.orderNumber });
-      setPendingOrder(null);
-      setReceipt(null);
-      setReference("");
-      forgetPendingOrder();
-      const freshKey = crypto.randomUUID(); setOrderKey(freshKey); sessionStorage.setItem("checkout-idempotency", freshKey);
+      const confirmed = await confirmCashOnDelivery(order.id);
       clear();
+      forgetPendingOrder();
+      setPendingOrder(null);
+      setCompleted({ orderNumber: confirmed.orderNumber, total: confirmed.totalAmount });
     } catch (error) {
       setMessage({ tone: "error", text: errorMessageFrom(error, t("checkout.errorGeneric")) });
     } finally {
@@ -290,7 +239,7 @@ export default function CheckoutPage() {
         <PageIntro
           kicker={t("checkout.kicker")}
           title={t("checkout.successTitle")}
-          description={t("checkout.successText", { orderNumber: completed.orderNumber })}
+          description={t("checkout.successText", { orderNumber: completed.orderNumber, total: formatPrice(completed.total, language) })}
         />
         <section className="bg-bun-paper py-16 sm:py-24">
           <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
@@ -417,127 +366,13 @@ export default function CheckoutPage() {
                     </p>
                   ) : config === null ? (
                     <p className="mt-5 text-sm font-bold text-bun-muted">{t("common.loading")}</p>
-                  ) : !config.paypingEnabled && !config.cardToCard.enabled ? (
-                    <p
-                      role="status"
-                      className="mt-5 rounded-2xl border border-bun-line bg-bun-paper px-4 py-3 text-sm font-bold text-bun-muted"
-                    >
-                      {t("checkout.noMethod")}
-                    </p>
                   ) : (
-                    <div className="mt-5 space-y-5">
-                      <div className="flex flex-wrap gap-3">
-                        {config.paypingEnabled ? (
-                          <label
-                            className={cn(
-                              "flex cursor-pointer items-center gap-2 rounded-full border px-5 py-3 text-sm font-bold transition-colors",
-                              method === "payping"
-                                ? "border-bun-orange bg-bun-orange/10 text-bun-accent"
-                                : "border-bun-line bg-bun-paper text-bun-muted hover:text-bun-text",
-                            )}
-                          >
-                            <input
-                              type="radio"
-                              name="payment-method"
-                              value="payping"
-                              checked={method === "payping"}
-                              onChange={() => setMethod("payping")}
-                              className="accent-bun-orange"
-                            />
-                            {t("checkout.payping")}
-                          </label>
-                        ) : null}
-                        {config.cardToCard.enabled ? (
-                          <label
-                            className={cn(
-                              "flex cursor-pointer items-center gap-2 rounded-full border px-5 py-3 text-sm font-bold transition-colors",
-                              method === "card"
-                                ? "border-bun-orange bg-bun-orange/10 text-bun-accent"
-                                : "border-bun-line bg-bun-paper text-bun-muted hover:text-bun-text",
-                            )}
-                          >
-                            <input
-                              type="radio"
-                              name="payment-method"
-                              value="card"
-                              checked={method === "card"}
-                              onChange={() => setMethod("card")}
-                              className="accent-bun-orange"
-                            />
-                            {t("checkout.card")}
-                          </label>
-                        ) : null}
-                      </div>
-
-                      {method === "card" && config.cardToCard.enabled ? (
-                        <div className="space-y-4 rounded-2xl border border-dashed border-bun-line bg-bun-paper p-5">
-                          <p className="flex items-center gap-2 text-sm font-black text-bun-text">
-                            <CreditCard className="size-4 text-bun-orange" aria-hidden="true" />
-                            {t("checkout.card")}
-                          </p>
-                          <dl className="space-y-2 text-sm">
-                            {config.cardToCard.cardNumber ? (
-                              <div className="flex items-center justify-between gap-3">
-                                <dt className="text-bun-muted">{t("checkout.cardNumber")}</dt>
-                                <dd dir="ltr" className="font-black tracking-wider text-bun-text">
-                                  {config.cardToCard.cardNumber}
-                                </dd>
-                              </div>
-                            ) : null}
-                            {config.cardToCard.ownerName ? (
-                              <div className="flex items-center justify-between gap-3">
-                                <dt className="text-bun-muted">{t("checkout.cardOwner")}</dt>
-                                <dd className="font-black text-bun-text">{config.cardToCard.ownerName}</dd>
-                              </div>
-                            ) : null}
-                            {config.cardToCard.bankName ? (
-                              <div className="flex items-center justify-between gap-3">
-                                <dt className="text-bun-muted">{t("checkout.cardBank")}</dt>
-                                <dd className="font-black text-bun-text">{config.cardToCard.bankName}</dd>
-                              </div>
-                            ) : null}
-                          </dl>
-
-                          <div className="space-y-2">
-                            <label
-                              htmlFor="checkout-receipt"
-                              className="flex cursor-pointer items-center gap-3 rounded-2xl border border-bun-line bg-bun-surface px-4 py-3 outline-none transition-colors hover:border-bun-orange focus-within:ring-2 focus-within:ring-bun-orange/20"
-                            >
-                              <UploadCloud className="size-4 text-bun-orange" aria-hidden="true" />
-                              <span className="text-sm font-bold text-bun-text">
-                                {t("checkout.receipt")}
-                              </span>
-                              <input
-                                id="checkout-receipt"
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                onChange={onReceiptChange}
-                                className="sr-only"
-                              />
-                            </label>
-                            <p className="text-xs text-bun-muted">{t("checkout.receiptHint")}</p>
-                            {receipt ? (
-                              <p className="flex items-center gap-2 text-xs font-black text-bun-accent">
-                                <ReceiptText className="size-3.5" aria-hidden="true" />
-                                {receipt.name}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <Field id="checkout-reference" label={t("checkout.reference")}>
-                            <input
-                              id="checkout-reference"
-                              value={reference}
-                              onChange={(event) => setReference(event.target.value)}
-                              dir="ltr"
-                              className={inputClass}
-                            />
-                          </Field>
-                        </div>
-                      ) : null}
+                    <div className="mt-5 space-y-3">
+                      <p className="rounded-2xl border border-bun-orange/40 bg-bun-paper px-4 py-3 text-sm font-bold text-bun-text">
+                        {t("checkout.codDescription")}
+                      </p>
                     </div>
                   )}
-
                   {message ? (
                     <p
                       role="status"
@@ -610,10 +445,15 @@ export default function CheckoutPage() {
                         </li>
                       ))}
                   </ul>
-                  <div className="mt-6 flex items-center justify-between border-t border-bun-line pt-5">
+                  <div className="mt-6 space-y-3 border-t border-bun-line pt-5 text-sm">
+                    <div className="flex items-center justify-between"><span>{t("checkout.subtotal")}</span><span>{formatPrice(total, language)}</span></div>
+                    <div className="flex items-center justify-between"><span>{t("checkout.tax", { rate: ((config?.vatRateBps ?? 0) / 100).toFixed(0) })}</span><span>{formatPrice(Math.round(total * (config?.vatRateBps ?? 0) / 10000), language)}</span></div>
+                    <div className="flex items-center justify-between"><span>{t("checkout.delivery")}</span><span>{config ? formatPrice(config.deliveryFeeToman, language) : t("common.loading")}</span></div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-bun-line pt-4">
                     <span className="text-sm font-bold text-bun-muted">{t("checkout.total")}</span>
                     <span className="font-display text-2xl font-black text-bun-text">
-                      {formatPrice(total, language)}
+                      {formatPrice(total + Math.round(total * (config?.vatRateBps ?? 0) / 10000) + (config?.deliveryFeeToman ?? 0), language)}
                     </span>
                   </div>
                   {pointsForAmount(total) > 0 ? (
@@ -621,12 +461,12 @@ export default function CheckoutPage() {
                       +{pointsForAmount(total)} {t("loyalty.pointsLabel")}
                     </p>
                   ) : null}
-                  {method === "card" && pendingOrder ? (
-                    <p className="mt-3 rounded-2xl bg-bun-paper px-4 py-3 text-xs font-bold leading-5 text-bun-muted">
-                      {t("checkout.cardCreated", { orderNumber: pendingOrder.orderNumber })}
-                    </p>
-                  ) : null}
                   <p className="mt-3 text-xs leading-5 text-bun-muted">{t("checkout.stockNote")}</p>
+                  <nav className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs underline" aria-label={t("policy.linksLabel")}>
+                    <Link to="/shipping-policy">{t("policy.shippingTitle")}</Link>
+                    <Link to="/return-policy">{t("policy.returnTitle")}</Link>
+                    <Link to="/privacy-policy">{t("policy.privacyTitle")}</Link>
+                  </nav>
                 </div>
               </aside>
             </div>
@@ -636,4 +476,3 @@ export default function CheckoutPage() {
     </>
   );
 }
-

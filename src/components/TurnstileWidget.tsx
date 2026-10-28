@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { TurnstileApi } from "./Captcha";
 
 /**
  * ویجت Cloudflare Turnstile.
@@ -8,10 +9,6 @@ import { useEffect, useRef } from "react";
  */
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
 
-interface TurnstileApi {
-  render: (el: HTMLElement, options: Record<string, unknown>) => string;
-  remove: (id: string) => void;
-}
 declare global {
   interface Window {
     turnstile?: TurnstileApi;

@@ -30,6 +30,9 @@ export interface PublicMenuItem {
   productId: string;
   name: string;
   description: string;
+  ingredients: string;
+  allergenInfo: string;
+  purchaseConditions: string;
   /** دسته استاندارد وب‌سایت؛ `null` یعنی بک‌اند نتوانسته دسته خام را نگاشت کند. */
   category: MenuCategory | null;
   /** متن خام دسته در دیتابیس (برای نمایش/دیباگ). */
@@ -119,7 +122,11 @@ function toMenuItem(raw: PublicMenuItem): MenuItem {
     // آیتم دارای سایز، قیمت «از» (ارزان‌ترین واریانت) را نشان می‌دهد.
     price: variants.length ? Math.min(...variants.map((candidate) => candidate.price)) : raw.price,
     ...(variants.length ? { variants } : null),
-    ingredients: { en: [], fa: [] },
+    ingredients: raw.ingredients?.trim()
+      ? { en: [raw.ingredients.trim()], fa: [raw.ingredients.trim()] }
+      : { en: [], fa: [] },
+    allergenInfo: raw.allergenInfo?.trim() || "نیاز به مقدار واقعی",
+    purchaseConditions: raw.purchaseConditions?.trim() || "نیاز به مقدار واقعی",
     options: { en: [], fa: [] },
     productId: raw.productId,
     available: raw.available,

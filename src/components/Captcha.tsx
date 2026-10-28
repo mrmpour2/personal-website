@@ -11,7 +11,7 @@ import { useLanguage } from "@/hooks/useLanguage";
  * توکن‌های کپچا یک‌بارمصرف‌اند؛ والد با تغییر `resetKey` ویجت را ریست می‌کند.
  */
 
-interface TurnstileApi {
+export interface TurnstileApi {
   render: (el: HTMLElement, options: Record<string, unknown>) => string;
   reset: (widgetId?: string) => void;
   remove: (widgetId?: string) => void;
