@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCart } from "@/context/CartContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useSmoothScrollPause } from "@/hooks/useSmoothScrollPause";
 import { Button } from "@/components/ui/Button";
 import type { TranslationKey } from "@/i18n";
 import { cn } from "@/utils/cn";
@@ -22,6 +23,7 @@ export function Navbar() {
   const { count, openCart } = useCart();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  useSmoothScrollPause(open);
   const [scrolled, setScrolled] = useState(false);
   const hasLightPageTop = /^\/(menu|blog)\/[^/]+/.test(location.pathname);
   const transparent = !scrolled && !open && !hasLightPageTop;
@@ -55,10 +57,11 @@ export function Navbar() {
         <NavLink
           to="/"
           className="group inline-flex items-baseline gap-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-bun-gold"
-          aria-label="شیش برگر الین home"
+          aria-label={t("brand.name")}
         >
-          <span className="font-display text-2xl font-black tracking-[-0.08em]">6Burger</span>
-          <span className={cn("font-display text-lg font-black", transparent ? "text-bun-orange" : "text-bun-accent")}>Elin</span>
+          <span className={cn("font-display text-lg font-black tracking-tight sm:text-xl", transparent ? "text-white" : "text-bun-text")}>
+            {t("brand.name")}
+          </span>
         </NavLink>
 
         <div className="hidden items-center gap-1 md:flex">

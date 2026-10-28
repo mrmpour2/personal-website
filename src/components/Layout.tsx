@@ -31,7 +31,7 @@ function ScrollManager() {
 }
 
 export function Layout() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [chatReady, setChatReady] = useState(false);
   const language = i18n.resolvedLanguage?.startsWith("fa") ? "fa" : "en";
 
@@ -43,14 +43,11 @@ export function Layout() {
   useEffect(() => {
     document.documentElement.lang = language;
     document.documentElement.dir = language === "fa" ? "rtl" : "ltr";
-    document.title =
-      language === "fa"
-        ? "شیش برگر الین | برگر برای شب‌های بیرجند"
-        : "شیش برگر الین | Built for the next bite";
+    document.title = t("brand.pageTitle");
     void import("@/motion/smoothScroll")
       .then(({ refreshMotion }) => refreshMotion())
       .catch(() => undefined);
-  }, [language]);
+  }, [language, t]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setChatReady(true), 1000);

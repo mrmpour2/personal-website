@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, BadgeCheck } from "lucide-react";
-import { type KeyboardEvent, useCallback, useState } from "react";
+import { type FocusEvent, type KeyboardEvent, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MotionSection } from "@/components/MotionSection";
 import { MotionText } from "@/components/MotionText";
@@ -8,7 +8,7 @@ import { ReviewStars } from "@/components/ReviewStars";
 import { Button } from "@/components/ui/Button";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useTableTalk } from "@/hooks/useTableTalk";
-import { prefersReducedMotion } from "@/motion/smoothScroll";
+import { prefersReducedMotion } from "@/utils/reducedMotion";
 import { cn } from "@/utils/cn";
 import { formatReviewDate, formatReviewNumber } from "@/utils/reviews";
 import { stepTableTalkIndex } from "@/utils/tableTalk";
@@ -31,11 +31,15 @@ export function TableTalk() {
   const language = useLanguage();
   const { items, status, retry } = useTableTalk();
   const [index, setIndex] = useState(0);
-  const reduced = prefersReducedMotion();
+  const [reduced, setReduced] = useState(() => prefersReducedMotion());
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
 
   const total = items.length;
   const safeIndex = total ? index % total : 0;
   const active = items[safeIndex] ?? null;
+  const paused = hovered || focused || userPaused;
 
   const step = useCallback(
     (direction: number) => {
@@ -43,6 +47,25 @@ export function TableTalk() {
     },
     [total],
   );
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (total < 2 || reduced || paused) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") step(1);
+    }, 6000);
+    return () => window.clearInterval(timer);
+  }, [paused, reduced, step, total]);
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false);
+  };
 
   /** کلیدهای جهت با جهت صفحه هم‌راستا می‌شوند (RTL برعکس LTR). */
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -95,6 +118,10 @@ export function TableTalk() {
             aria-label={t("home.testimonialsTitle")}
             tabIndex={0}
             onKeyDown={handleKeyDown}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
+            onFocusCapture={() => setFocused(true)}
+            onBlurCapture={handleBlur}
             className="relative overflow-hidden rounded-[2rem] border border-bun-line bg-bun-surface/50 p-6 outline-none transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-bun-gold focus-visible:ring-offset-2 focus-visible:ring-offset-bun-paper sm:p-10 lg:p-12"
           >
             <span
@@ -189,6 +216,14 @@ export function TableTalk() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setUserPaused((current) => !current)}
+                    disabled={reduced}
+                  >
+                    {userPaused ? t("home.resumeTestimonials") : t("home.pauseTestimonials")}
+                  </Button>
                   <p className="me-1 font-display text-xs tabular-nums text-bun-muted">
                     {formatReviewNumber(safeIndex + 1, language)} / {formatReviewNumber(total, language)}
                   </p>

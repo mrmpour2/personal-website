@@ -16,7 +16,7 @@ import {
 } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
 import { usePublicMenu } from "@/hooks/usePublicMenu";
-import { prefersReducedMotion, refreshMotion } from "@/motion/smoothScroll";
+import { prefersReducedMotion } from "@/utils/reducedMotion";
 import type { MenuItem } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -326,7 +326,9 @@ export function FeaturedRail() {
   useEffect(() => {
     if (previousCount.current === itemCount) return;
     previousCount.current = itemCount;
-    refreshMotion();
+    void import("@/motion/smoothScroll")
+      .then(({ refreshMotion }) => refreshMotion())
+      .catch(() => undefined);
   }, [itemCount]);
 
   const registerCard = useCallback((index: number, node: HTMLElement | null) => {

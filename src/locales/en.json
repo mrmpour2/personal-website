@@ -1,8 +1,10 @@
 {
-  "brand": { "tagline": "Built for the next bite." },
-  "nav": { "home": "Home", "menu": "Menu", "loyalty": "Club", "blog": "Stories", "cart": "Open order", "cartWithCount": "Open order ({{count}})", "theme": "Switch theme", "language": "فارسی", "openMenu": "Open navigation", "closeMenu": "Close navigation" },
+  "brand": { "name": "Shish Burger Line", "pageTitle": "Shish Burger Line | Built for the next bite", "tagline": "Built for the next bite." },
+  "nav": { "home": "Home", "menu": "Menu", "loyalty": "Customer Club", "blog": "Stories", "cart": "Open order", "cartWithCount": "Open order ({{count}})", "theme": "Switch theme", "language": "فارسی", "openMenu": "Open navigation", "closeMenu": "Close navigation" },
   "common": { "viewMenu": "Explore the menu", "viewDetails": "View details", "readMore": "Read story", "minutes": "min read", "rating": "rating", "loading": "Loading fresh content...", "back": "Go back", "joinNow": "Join شیش برگر الین", "learnMore": "Learn more" },
   "home": {
+    "pauseTestimonials": "Pause reviews",
+    "resumeTestimonials": "Resume reviews",
     "heroTitle": "Take Your First Bite",
     "heroDescription": "Crisp edges. Soft buns. Big Birjand energy. This is the burger you came in for.",
     "featuredKicker": "Most wanted",
@@ -387,7 +389,7 @@
     "pointsAuto": "Club points are added automatically once the restaurant confirms your payment.",
     "dismiss": "Dismiss"
   },
-  "footer": { "tagline": "Hot grill. Cold drinks. Birjand nights.", "quickLinks": "Quick links", "contact": "Contact", "follow": "Follow", "instagramHint": "Nightly drops and stories from the grill.", "location": "Find us", "mapTitle": "شیش برگر الین on the map", "openInMaps": "Open in Google Maps", "directions": "Get directions", "phone": "05632420101", "copyright": "شیش برگر الین. All bites reserved.", "credit": "by mr.mpour72@gmail.com" },
+  "footer": { "tagline": "Hot grill. Cold drinks. Birjand nights.", "quickLinks": "Quick links", "contact": "Contact", "follow": "Follow", "instagramHint": "Nightly drops and stories from the grill.", "location": "Find us", "mapTitle": "Shish Burger Line on the map", "openInMaps": "Open in Google Maps", "directions": "Get directions", "phone": "05632420101", "copyright": "Shish Burger Line. All rights reserved.", "credit": "by mr.mpour72@gmail.com" },
   "policy": { "linksLabel": "Store policies", "shippingTitle": "Shipping and delivery", "returnTitle": "Cancellation and refunds", "privacyTitle": "Privacy" },
   "notFound": { "title": "This table is empty.", "text": "The page you requested is not on tonight's menu.", "action": "Return home" }
 }

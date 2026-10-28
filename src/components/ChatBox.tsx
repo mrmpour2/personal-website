@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { useCart } from "@/context/CartContext";
 import { defaultVariant, formatPrice, hasVariants, priceRange } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useSmoothScrollPause } from "@/hooks/useSmoothScrollPause";
 import type { MenuItem } from "@/types";
 import { sanitizeInput } from "@/utils/sanitize";
 import { getChatSessionId } from "@/utils/session";
@@ -45,6 +46,7 @@ export default function ChatBox() {
   const language = useLanguage();
   const { addItem, count, openCart } = useCart();
   const [open, setOpen] = useState(false);
+  useSmoothScrollPause(open);
   const [input, setInput] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [products, setProducts] = useState<MenuItem[]>([]);
@@ -301,7 +303,7 @@ export default function ChatBox() {
               ) : null}
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+            <div data-lenis-prevent className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4" aria-live="polite">
               {catalogOpen ? (
                 <section className="space-y-2" aria-label={t("chat.catalogTitle")}>
                   <h3 className="text-sm font-bold text-bun-text">{t("chat.catalogTitle")}</h3>

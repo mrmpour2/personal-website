@@ -26,7 +26,7 @@ export default function HomeSections() {
         <div className="mx-auto grid max-w-[1600px] lg:grid-cols-2">
           <ResponsiveImage
             src={aboutImage}
-            alt={language === "fa" ? "آشپزخانه گرم و شلوغ شیش برگر الین" : "The warm, busy شیش برگر الین kitchen"}
+            alt={language === "fa" ? `آشپزخانه گرم و شلوغ ${t("brand.name")}` : `The warm, busy ${t("brand.name")} kitchen`}
             sizes="(max-width: 1024px) 100vw, 50vw"
             className="min-h-[380px] lg:min-h-[620px]"
             imageClassName="h-full"
@@ -66,7 +66,7 @@ export default function HomeSections() {
           >
             <div className="absolute -end-20 -top-36 size-72 rounded-full bg-bun-gold/20 blur-3xl" />
             <div className="relative max-w-2xl" data-reveal-group="">
-              <p className="font-display text-4xl font-black tracking-[-0.05em] sm:text-6xl" data-reveal-item="">شیش برگر الین CLUB</p>
+              <p className="font-display text-4xl font-black tracking-[-0.05em] sm:text-6xl" data-reveal-item="">{t("brand.name")}</p>
               <MotionText text={t("home.loyaltyTitle")} className="mt-6 font-display text-3xl font-black tracking-tight sm:text-5xl" />
               <p className="mt-4 max-w-xl text-base leading-7 text-white/80" data-reveal-item="">{t("home.loyaltyText")}</p>
               <div className="mt-7" data-reveal-item="">

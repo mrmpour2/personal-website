@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { RevealPreset } from "@/types";
-import { prefersReducedMotion } from "@/motion/smoothScroll";
+import { prefersReducedMotion } from "@/utils/reducedMotion";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -476,7 +476,7 @@ const NOOP_CONTROLLER: MotionController = {
 export function startMotionSystem(root: ParentNode = document): MotionController {
   if (prefersReducedMotion()) return NOOP_CONTROLLER;
 
-  const direction: 1 | -1 = document.documentElement.getAttribute("dir") === "rtl" ? -1 : 1;
+  let direction: 1 | -1 = document.documentElement.getAttribute("dir") === "rtl" ? -1 : 1;
   const finePointer = window.matchMedia("(pointer: fine)").matches;
   const context = gsap.context(() => undefined);
   const listenerCleanups: Array<() => void> = [];
@@ -520,7 +520,13 @@ export function startMotionSystem(root: ParentNode = document): MotionController
   };
 
   const refresh = () => {
-    if (!destroyed) ScrollTrigger.refresh();
+    if (destroyed) return;
+    const nextDirection: 1 | -1 = document.documentElement.getAttribute("dir") === "rtl" ? -1 : 1;
+    if (nextDirection !== direction) {
+      direction = nextDirection;
+      syncGalleries();
+    }
+    ScrollTrigger.refresh();
   };
 
   pass();
@@ -537,6 +543,8 @@ export function startMotionSystem(root: ParentNode = document): MotionController
   }, 1400);
 
   window.addEventListener("load", refresh);
+  document.addEventListener("load", refresh, true);
+  window.addEventListener("elin:motion-refresh", refresh);
   void document.fonts?.ready.then(refresh).catch(() => undefined);
 
   return {
@@ -546,6 +554,8 @@ export function startMotionSystem(root: ParentNode = document): MotionController
       observer?.disconnect();
       if (safetyTimer !== null) window.clearTimeout(safetyTimer);
       window.removeEventListener("load", refresh);
+      document.removeEventListener("load", refresh, true);
+      window.removeEventListener("elin:motion-refresh", refresh);
       listenerCleanups.forEach((cleanup) => cleanup());
       galleryMedia?.revert();
       context.revert();

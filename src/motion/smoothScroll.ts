@@ -2,15 +2,12 @@ import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
+import { prefersReducedMotion } from "@/utils/reducedMotion";
 
 gsap.registerPlugin(ScrollTrigger);
 
 let activeLenis: Lenis | null = null;
-
-/** True when the visitor asked their OS for reduced motion. */
-export function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+let pauseCount = 0;
 
 /**
  * Boots Lenis once per page load and drives it from the GSAP ticker, so
@@ -28,6 +25,7 @@ export function startSmoothScroll(): () => void {
     autoRaf: false,
   });
   activeLenis = instance;
+  if (pauseCount > 0) instance.stop();
 
   const syncScrollTrigger = () => ScrollTrigger.update();
   const tick = (time: number) => instance.raf(time * 1000);
@@ -45,6 +43,19 @@ export function startSmoothScroll(): () => void {
   };
 }
 
+export function pauseSmoothScroll(): () => void {
+  pauseCount += 1;
+  activeLenis?.stop();
+  let released = false;
+
+  return () => {
+    if (released) return;
+    released = true;
+    pauseCount = Math.max(0, pauseCount - 1);
+    if (pauseCount === 0) activeLenis?.start();
+  };
+}
+
 /** Jumps to the top, through Lenis when it owns the scroll. */
 export function scrollToTop(): void {
   if (activeLenis) {
@@ -56,5 +67,6 @@ export function scrollToTop(): void {
 
 /** Re-measures every ScrollTrigger after a layout-affecting change (language, dir, fonts). */
 export function refreshMotion(): void {
+  window.dispatchEvent(new Event("elin:motion-refresh"));
   ScrollTrigger.refresh();
 }

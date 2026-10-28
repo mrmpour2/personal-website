@@ -9,6 +9,7 @@ import { useCart, type CartLine } from "@/context/CartContext";
 import { formatPrice } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useModalFocus } from "@/hooks/useModalFocus";
+import { useSmoothScrollPause } from "@/hooks/useSmoothScrollPause";
 import { cn } from "@/utils/cn";
 
 /**
@@ -144,6 +145,7 @@ export function CartDrawer() {
   const { t } = useTranslation();
   const language = useLanguage();
   const { lines, count, total, isOpen, closeCart, clear } = useCart();
+  useSmoothScrollPause(isOpen);
 
   const panel = useRef<HTMLElement | null>(null);
   useModalFocus(panel, isOpen, closeCart);
@@ -212,7 +214,7 @@ export function CartDrawer() {
               </div>
             ) : (
               <>
-                <ul className="flex-1 space-y-3 overflow-y-auto px-5 py-4" aria-live="polite">
+                <ul data-lenis-prevent className="flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4" aria-live="polite">
                   {lines
                     .filter((line) => !line.parentKey)
                     .map((line) => (

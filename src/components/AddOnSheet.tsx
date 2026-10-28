@@ -9,6 +9,7 @@ import { useAddOnPanel } from "@/context/AddOnContext";
 import { CART_MAX_ADD_ON_QUANTITY, useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
+import { useSmoothScrollPause } from "@/hooks/useSmoothScrollPause";
 import { useModalFocus } from "@/hooks/useModalFocus";
 import type { MenuItem } from "@/types";
 
@@ -43,6 +44,7 @@ export function AddOnSheet() {
   const language = useLanguage();
   const { lines, setAddOn } = useCart();
   const { target, close } = useAddOnPanel();
+  useSmoothScrollPause(Boolean(target));
 
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [addOns, setAddOns] = useState<MenuItem[]>([]);
@@ -176,7 +178,7 @@ export function AddOnSheet() {
                 </Button>
               </header>
 
-              <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+              <div data-lenis-prevent className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
                 {status === "loading" ? (
                   <p
                     role="status"

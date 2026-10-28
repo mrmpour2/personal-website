@@ -1,8 +1,10 @@
 {
-  "brand": { "tagline": "برای گاز بعدی ساخته شده." },
-  "nav": { "home": "خانه", "menu": "منو", "loyalty": "باشگاه", "blog": "داستان‌ها", "cart": "باز کردن سفارش", "cartWithCount": "باز کردن سفارش ({{count}})", "theme": "تغییر پوسته", "language": "EN", "openMenu": "باز کردن منو", "closeMenu": "بستن منو" },
+  "brand": { "name": "شیش برگر لاین", "pageTitle": "شیش برگر لاین | برای گاز بعدی ساخته شده", "tagline": "برای گاز بعدی ساخته شده." },
+  "nav": { "home": "خانه", "menu": "منو", "loyalty": "باشگاه مشتریان", "blog": "داستان‌ها", "cart": "باز کردن سفارش", "cartWithCount": "باز کردن سفارش ({{count}})", "theme": "تغییر پوسته", "language": "EN", "openMenu": "باز کردن منو", "closeMenu": "بستن منو" },
   "common": { "viewMenu": "دیدن منو", "viewDetails": "مشاهده جزئیات", "readMore": "خواندن داستان", "minutes": "دقیقه مطالعه", "rating": "امتیاز", "loading": "محتوای تازه در حال بارگذاری است...", "back": "بازگشت", "joinNow": "عضویت در شیش برگر الین", "learnMore": "بیشتر بدانید" },
   "home": {
+    "pauseTestimonials": "توقف نمایش خودکار نظرها",
+    "resumeTestimonials": "ادامه نمایش نظرها",
     "heroTitle": "یک گاز از طعم واقعی بزن",
     "heroDescription": "لبه‌های ترد، نان نرم و انرژی شب‌های بیرجند. این همان برگری است که برایش آمده‌ای.",
     "featuredKicker": "پرطرفدارها",
@@ -387,7 +389,7 @@
     "pointsAuto": "امتیاز باشگاه پس از تأیید پرداخت توسط رستوران خودکار اضافه می‌شود.",
     "dismiss": "بستن"
   },
-  "footer": { "tagline": "گریل داغ، نوشیدنی خنک، شب‌های بیرجند.", "quickLinks": "دسترسی سریع", "contact": "ارتباط", "follow": "دنبال کنید", "instagramHint": "پیشنهادهای شبانه و روایت‌های کنار گریل.", "location": "ما را پیدا کنید", "mapTitle": "شیش برگر الین روی نقشه", "openInMaps": "باز کردن در گوگل‌مپ", "directions": "مسیریابی", "phone": "05632420101", "copyright": "شیش برگر الین. تمام گازها محفوظ است.", "credit": "by mr.mpour72@gmail.com" },
+  "footer": { "tagline": "گریل داغ، نوشیدنی خنک، شب‌های بیرجند.", "quickLinks": "دسترسی سریع", "contact": "ارتباط", "follow": "دنبال کنید", "instagramHint": "پیشنهادهای شبانه و روایت‌های کنار گریل.", "location": "ما را پیدا کنید", "mapTitle": "شیش برگر لاین روی نقشه", "openInMaps": "باز کردن در گوگل‌مپ", "directions": "مسیریابی", "phone": "05632420101", "copyright": "شیش برگر لاین. تمام حقوق محفوظ است.", "credit": "by mr.mpour72@gmail.com" },
   "policy": { "linksLabel": "صفحات سیاست فروشگاه", "shippingTitle": "ارسال و تحویل", "returnTitle": "لغو و بازگشت وجه", "privacyTitle": "حریم خصوصی" },
   "notFound": { "title": "این میز خالی است.", "text": "صفحه‌ای که خواستی در منوی امشب نیست.", "action": "بازگشت به خانه" }
 }
