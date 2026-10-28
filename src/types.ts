@@ -46,6 +46,7 @@ export interface MenuItem {
   description: LocalizedText;
   fullDescription: LocalizedText;
   image: string;
+  videoUrl?: string | null;
   imageAlt: LocalizedText;
   price: number;
   /**

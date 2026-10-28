@@ -40,6 +40,7 @@ export interface PublicMenuItem {
   price: number;
   currency: string;
   image: string | null;
+  videoUrl?: string | null;
   stock: number;
   available: boolean;
   /**
@@ -118,6 +119,7 @@ function toMenuItem(raw: PublicMenuItem): MenuItem {
     description: { en: description, fa: description },
     fullDescription: { en: description, fa: description },
     image: (raw.image ?? "").trim(),
+    videoUrl: raw.videoUrl?.trim() || null,
     imageAlt: text,
     // آیتم دارای سایز، قیمت «از» (ارزان‌ترین واریانت) را نشان می‌دهد.
     price: variants.length ? Math.min(...variants.map((candidate) => candidate.price)) : raw.price,

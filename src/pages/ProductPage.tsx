@@ -103,12 +103,24 @@ export default function ProductPage() {
             {t("common.back")}
           </Link>
           <div className="grid items-start gap-10 lg:grid-cols-[1.08fr_.92fr] lg:gap-16">
-            <MenuItemImage
-              item={item}
-              eager
-              sizes="(max-width: 1024px) 100vw, 56vw"
-              className="aspect-[4/3] rounded-[2rem] bg-bun-surface shadow-2xl shadow-black/10"
-            />
+            <div className="space-y-4">
+              <MenuItemImage
+                item={item}
+                eager
+                sizes="(max-width: 1024px) 100vw, 56vw"
+                className="aspect-[4/3] rounded-[2rem] bg-bun-surface shadow-2xl shadow-black/10"
+              />
+              {item.videoUrl ? (
+                <video
+                  controls
+                  preload="none"
+                  poster={item.image || undefined}
+                  className="aspect-video w-full rounded-[2rem] bg-bun-ink object-cover"
+                >
+                  <source src={item.videoUrl} />
+                </video>
+              ) : null}
+            </div>
             <div className="lg:pt-4" data-reveal-group="">
               <div className="flex items-center gap-2 text-sm font-bold text-bun-muted" data-reveal-item="">
                 {item.rating === undefined ? null : (
