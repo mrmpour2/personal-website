@@ -15,6 +15,8 @@ const links: ReadonlyArray<{ to: string; label: TranslationKey }> = [
   { to: "/menu", label: "nav.menu" },
   { to: "/loyalty", label: "nav.loyalty" },
   { to: "/blog", label: "nav.blog" },
+  { to: "/faq", label: "nav.faq" },
+  { to: "/support", label: "nav.support" },
 ];
 
 export function Navbar() {

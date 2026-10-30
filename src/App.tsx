@@ -13,6 +13,9 @@ const BlogPage = lazy(() => import("@/pages/BlogPage"));
 const BlogPostPage = lazy(() => import("@/pages/BlogPostPage"));
 const PolicyPage = lazy(() => import("@/pages/PolicyPage"));
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
+const FaqPage = lazy(() => import("@/pages/FaqPage"));
+const SupportPage = lazy(() => import("@/pages/SupportPage"));
+const TicketTrackingPage = lazy(() => import("@/pages/TicketTrackingPage"));
 
 export default function App() {
   return (
@@ -31,6 +34,9 @@ export default function App() {
               <Route path="loyalty" element={<LoyaltyPage />} />
               <Route path="blog" element={<BlogPage />} />
               <Route path="blog/:id" element={<BlogPostPage />} />
+              <Route path="faq" element={<FaqPage />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="support/track" element={<TicketTrackingPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
           </Routes>

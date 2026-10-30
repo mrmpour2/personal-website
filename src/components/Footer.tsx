@@ -58,6 +58,9 @@ export function Footer() {
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/privacy-policy">{t("policy.privacyTitle")}</Link>
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/loyalty">{t("nav.loyalty")}</Link>
             <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/blog">{t("nav.blog")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/faq">{t("nav.faq")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/support">{t("nav.support")}</Link>
+            <Link className="hover:text-bun-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bun-gold" to="/support/track">{t("support.trackTab")}</Link>
           </div>
         </div>
         <div>
