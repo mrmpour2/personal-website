@@ -44,6 +44,9 @@ export interface ClubJoinInput {
   phone: string;
   /** ۴ تا ۸ رقم؛ ارقام فارسی/عربی هم پذیرفته می‌شوند. */
   pin: string;
+  birthDate?: string;
+  termsAccepted: true;
+  marketingConsent: boolean;
   captchaToken?: string;
 }
 
@@ -173,6 +176,8 @@ function parseMember(value: unknown): ClubMember {
     id: text(raw.id),
     name: text(raw.name),
     phone: text(raw.phone),
+    birthDate: nullableText(raw.birthDate),
+    marketingConsent: raw.marketingConsent === true,
     verificationStatus: text(raw.verificationStatus),
     verifiedPhone: nullableText(raw.verifiedPhone),
     legacyUntil: nullableText(raw.legacyUntil),
@@ -315,6 +320,14 @@ export async function loginClub(input: ClubLoginInput): Promise<ClubMember> {
 /** بستن کوکی عضویت؛ پاسخ ۲۰۴ بدنه ندارد. */
 export async function logoutClub(): Promise<void> {
   await run(apiClient.post<null>(`${CLUB_BASE}/logout`, null, WITH_COOKIE));
+}
+
+export async function setClubMarketingConsent(allowed: boolean): Promise<void> {
+  await run(apiClient.patch(`${CLUB_BASE}/me/marketing-consent`, { allowed }, WITH_COOKIE));
+}
+
+export async function cancelClubMembership(): Promise<void> {
+  await run(apiClient.delete(`${CLUB_BASE}/me`, WITH_COOKIE));
 }
 
 /**

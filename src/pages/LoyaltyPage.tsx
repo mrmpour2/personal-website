@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { isClubApiError, type ClubClaim } from "@/api/club";
+import { cancelClubMembership, isClubApiError, setClubMarketingConsent, type ClubClaim } from "@/api/club";
 import { ClubOwnershipVerification } from "@/components/ClubOwnershipVerification";
 import { Captcha } from "@/components/Captcha";
 import { PageIntro } from "@/components/PageIntro";
@@ -100,6 +100,9 @@ export default function LoyaltyPage() {
   const [claim, setClaim] = useState<ClubClaim | null>(null);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [pin, setPin] = useState("");
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
@@ -110,6 +113,7 @@ export default function LoyaltyPage() {
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
   const [redeemError, setRedeemError] = useState("");
   const [redeemed, setRedeemed] = useState<{ code: string; title: string } | null>(null);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
 
   const number = (value: number) => formatLoyaltyNumber(value, language);
 
@@ -149,13 +153,17 @@ export default function LoyaltyPage() {
       setFeedback(t("loyalty.nameError"));
       return;
     }
+    if (mode === "join" && !termsAccepted) {
+      setFeedback(language === "fa" ? "پذیرش شرایط عضویت الزامی است." : "You must accept the club terms.");
+      return;
+    }
     if (mode === "join" && captchaNeeded && !captchaToken) return;
 
     setFeedback("");
     setBusy(true);
     try {
       if (mode === "join") {
-        setClaim(await join({ name: trimmedName, phone: phone.trim(), pin: pin.trim(), captchaToken: captchaToken || undefined }));
+        setClaim(await join({ name: trimmedName, phone: phone.trim(), pin: pin.trim(), termsAccepted: true, marketingConsent, ...(birthDate ? { birthDate } : {}), captchaToken: captchaToken || undefined }));
         setCaptchaNeeded(false);
       } else {
         await login({ phone: phone.trim(), pin: pin.trim() });
@@ -190,6 +198,24 @@ export default function LoyaltyPage() {
     } finally {
       setLoggingOut(false);
     }
+  };
+
+  const handleMarketingConsent = async () => {
+    if (!member || privacyBusy) return;
+    setPrivacyBusy(true);
+    try { await setClubMarketingConsent(!member.marketingConsent); await refresh(); }
+    catch { setFeedback(t("loyalty.networkError")); }
+    finally { setPrivacyBusy(false); }
+  };
+
+  const handleMembershipCancel = async () => {
+    if (!member || privacyBusy) return;
+    const confirmed = window.confirm(language === "fa" ? "با لغو عضویت، ورود و مزایای باشگاه غیرفعال می‌شود. ادامه می‌دهید؟" : "Cancel membership and disable club access and benefits?");
+    if (!confirmed) return;
+    setPrivacyBusy(true);
+    try { await cancelClubMembership(); await refresh(); }
+    catch { setFeedback(t("loyalty.networkError")); }
+    finally { setPrivacyBusy(false); }
   };
 
   const handleRedeem = async (reward: ClubReward) => {
@@ -321,6 +347,7 @@ export default function LoyaltyPage() {
                       </button>
                     </div>
 
+                    <div className="mb-4 flex flex-wrap gap-2 text-xs"><button type="button" disabled={privacyBusy} onClick={handleMarketingConsent} className="rounded-full border border-white/40 px-3 py-2 disabled:opacity-50">{member.marketingConsent ? (language === "fa" ? "لغو پیامک تبلیغاتی" : "Unsubscribe from marketing") : (language === "fa" ? "فعال‌سازی پیامک تبلیغاتی" : "Opt in to marketing SMS")}</button><button type="button" disabled={privacyBusy} onClick={handleMembershipCancel} className="rounded-full border border-white/40 px-3 py-2 disabled:opacity-50">{language === "fa" ? "لغو عضویت" : "Cancel membership"}</button></div>
                     <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
                       <div>
                         <p className="font-display text-6xl font-black leading-none">{number(member.points)}</p>
@@ -420,6 +447,11 @@ export default function LoyaltyPage() {
                         />
                       </div>
                     ) : null}
+                    {mode === "join" ? <div className="space-y-2 text-sm">
+                      <label className="block">{language === "fa" ? "تاریخ تولد (اختیاری)" : "Birthday (optional)"}<input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="mt-1 block h-11 rounded-xl border border-bun-line bg-bun-paper px-3" /></label>
+                      <label className="flex items-start gap-2"><input type="checkbox" checked={termsAccepted} onChange={e => setTermsAccepted(e.target.checked)} required className="mt-1"/><span>{language === "fa" ? "شرایط عضویت باشگاه مشتریان را می‌پذیرم." : "I accept the customer club terms."}</span></label>
+                      <label className="flex items-start gap-2"><input type="checkbox" checked={marketingConsent} onChange={e => setMarketingConsent(e.target.checked)} className="mt-1"/><span>{language === "fa" ? "مایلم پیامک‌های تبلیغاتی باشگاه را دریافت کنم. این انتخاب اختیاری است و هر زمان قابل لغو است." : "I agree to receive club marketing SMS. Optional; you can unsubscribe at any time."}</span></label>
+                    </div> : null}
                     <div>
                       <label htmlFor="club-phone" className="mb-1.5 block text-xs font-black text-bun-text">
                         {t("loyalty.phoneLabel")}

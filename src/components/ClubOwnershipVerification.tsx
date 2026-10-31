@@ -44,7 +44,7 @@ export function ClubOwnershipVerification({ initialClaim = null, member, onVerif
         await verify(claim.claimId, code, captchaToken || undefined);
         onVerified?.();
       } else if (member) {
-        const next = await join({ phone: member.phone, name: member.name, pin, captchaToken: captchaToken || undefined });
+        const next = await join({ phone: member.phone, name: member.name, pin, termsAccepted: true, marketingConsent: member.marketingConsent, captchaToken: captchaToken || undefined });
         setClaim(next); setPin(""); setResendAt(Date.now() + next.resendAfter * 1000);
         setCaptchaNeeded(false);
       }

@@ -152,6 +152,8 @@ export interface ClubTierSnapshot {
 
 export interface ClubMember {
   verificationStatus: string;
+  birthDate: string | null;
+  marketingConsent: boolean;
   verifiedPhone: string | null;
   legacyUntil: string | null;
   id: string;
