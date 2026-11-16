@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "lint": "eslint .",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -33,13 +34,18 @@
     "tailwind-merge": "3.4.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "4.1.17",
     "@types/node": "^22.19.17",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "5.1.1",
+    "eslint": "^10.9.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vite": "7.3.7"
   }
 }

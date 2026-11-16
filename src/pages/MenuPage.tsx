@@ -4,8 +4,10 @@ import { useTranslation } from "react-i18next";
 import { MenuCard } from "@/components/MenuCard";
 import { PageIntro } from "@/components/PageIntro";
 import { SkeletonLoader } from "@/components/SkeletonLoader";
-import { menuItems, mergeCatalogItems } from "@/data/content";
+import { menuItems } from "@/data/content";
+import { MockFallbackMarker } from "@/components/MockFallbackMarker";
 import { usePublicMenu } from "@/hooks/usePublicMenu";
+import { resolveCatalogItems } from "@/utils/catalogSource.js";
 import type { MenuCategory } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -14,15 +16,15 @@ const categories: MenuCategory[] = ["burgers", "pizza", "sides", "drinks", "comb
 export default function MenuPage() {
   const { t } = useTranslation();
   const [active, setActive] = useState<MenuCategory>("burgers");
-  const { items: liveItems, status } = usePublicMenu();
+  const { items: liveItems, status, fallbackEligible, usingMockFallback } = usePublicMenu();
 
   /**
    * کاتالوگ ثابت + آیتم‌های زنده پنل. آیتم‌های ثابت اول می‌آیند (تصویر و متن
    * تأییدشده) و آیتم هم‌نام دیتابیس حذف می‌شود تا یک غذا دو بار دیده نشود.
    */
   const items = useMemo(
-    () => mergeCatalogItems(menuItems, liveItems).filter((item) => item.category === active),
-    [liveItems, active],
+    () => resolveCatalogItems(status, liveItems, menuItems, fallbackEligible).filter((item) => item.category === active),
+    [status, liveItems, fallbackEligible, active],
   );
 
   return (
@@ -32,6 +34,7 @@ export default function MenuPage() {
         title={t("menuPage.title")}
         description={t("menuPage.description")}
       />
+      <MockFallbackMarker active={usingMockFallback} />
       <section className="bg-bun-paper py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {status === "error" ? (

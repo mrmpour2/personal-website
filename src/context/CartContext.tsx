@@ -1,8 +1,10 @@
-import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { defaultVariant, findVariant, itemVariants } from "@/data/content";
-import type { LocalizedText, MenuItem, MenuItemVariant } from "@/types";
+import type { LocalizedText, MenuItem, MenuItemOption, MenuItemVariant } from "@/types";
 import { apiBaseUrl } from "@/api/client";
 import { getChatSessionId } from "@/utils/session";
+import { usePublicMenu } from "@/hooks/usePublicMenu";
+import { cartLineKey as buildCartLineKey, cartLineUnitPrice as getCartLineUnitPrice, reconcileLiveCartLines } from "@/utils/catalogSource.js";
 
 /**
  * سبد خرید سراسری سایت.
@@ -44,10 +46,13 @@ export interface CartLine {
   key: string;
   /** شناسه محصول در دیتابیس؛ همان چیزی که به `POST /api/payment/orders` می‌رود. */
   productId: string;
+  /** Client hint only; order attribution is validated against the guest-session cookie server-side. */
+  chatConversationIds?: string[];
   /** شناسه واریانت انتخاب‌شده در دیتابیس (فقط آیتم‌های دارای سایز/بسته). */
   variantId?: string;
   /** برچسب واریانت برای نمایش در سبد و خلاصه سفارش. */
   variantLabel?: LocalizedText;
+  selectedOptions?: MenuItemOption[];
   /**
    * کلید سطر غذای اصلی برای سطرهای مخلفات؛ `undefined` یعنی این سطر خودش یک
    * قلم مستقل است. مخلفاتِ بی‌والد هنگام خواندن از storage کنار گذاشته می‌شوند.
@@ -66,8 +71,8 @@ export interface CartLine {
 }
 
 /** کلید یکتای سطر سبد؛ بدون واریانت همان شناسه محصول است. */
-export function cartLineKey(productId: string, variantId?: string | null): string {
-  return variantId ? `${productId}::${variantId}` : productId;
+export function cartLineKey(productId: string, variantId?: string | null, selectedOptionIds: readonly string[] = []): string {
+  return buildCartLineKey(productId, variantId, selectedOptionIds);
 }
 
 /**
@@ -88,7 +93,7 @@ interface CartContextValue {
    * افزودن آیتم (و در صورت وجود، سایز/واریانت انتخاب‌شده) به سبد.
    * `false` یعنی آیتم قابل سفارش آنلاین نیست یا واریانت انتخاب‌شده موجود نیست.
    */
-  addItem: (item: MenuItem, quantity?: number, variantKey?: string) => boolean;
+  addItem: (item: MenuItem, quantity?: number, variantKey?: string, selectedOptionIds?: string[], sourceChatConversationId?: string) => boolean;
   /**
    * ثبت/ویرایش مخلفات یک قلم اصلی. تعداد **مطلق** است (نه افزایشی): صفر یعنی
    * حذف همان مخلفات. بنابراین اجرای دوباره هرگز سطر تکراری نمی‌سازد.
@@ -118,14 +123,14 @@ export function isOrderableItem(item: MenuItem): boolean {
  * صفحه‌ها از همین تابع استفاده می‌کنند تا پس از افزودن، سطر تازه را پیدا کنند
  * (مثلاً برای پیشنهاد مخلفات) بدون آنکه منطق کلید در دو جا تکرار شود.
  */
-export function resolveCartLineKey(item: MenuItem, variantKey?: string | null): string | null {
+export function resolveCartLineKey(item: MenuItem, variantKey?: string | null, selectedOptionIds: readonly string[] = []): string | null {
   if (!isOrderableItem(item) || !item.productId) return null;
   const variants = itemVariants(item);
-  if (variants.length === 0) return cartLineKey(item.productId);
+  if (variants.length === 0) return cartLineKey(item.productId, null, selectedOptionIds);
 
   const chosen = findVariant(item, variantKey) ?? defaultVariant(item);
   if (!chosen || chosen.available === false) return null;
-  return cartLineKey(item.productId, chosen.id ?? chosen.key);
+  return cartLineKey(item.productId, chosen.id ?? chosen.key, selectedOptionIds);
 }
 
 function isLocalizedText(value: unknown): value is LocalizedText {
@@ -133,6 +138,15 @@ function isLocalizedText(value: unknown): value is LocalizedText {
   const text = value as Record<string, unknown>;
   return typeof text.en === "string" && typeof text.fa === "string";
 }
+
+function isStoredOption(value: unknown): value is MenuItemOption {
+  if (typeof value !== "object" || value === null) return false;
+  const option = value as Record<string, unknown>;
+  return typeof option.id === "string" && isLocalizedText(option.label) &&
+    typeof option.priceDelta === "number" && Number.isFinite(option.priceDelta) && option.priceDelta >= 0;
+}
+
+export const cartLineUnitPrice = getCartLineUnitPrice;
 
 /** سطر ذخیره‌شده در `localStorage`؛ نسخه‌های قدیمی `key` نداشتند. */
 type StoredCartLine = Omit<CartLine, "key"> & { key?: string };
@@ -145,7 +159,11 @@ function isCartLine(value: unknown): value is StoredCartLine {
     line.productId.length > 0 &&
     (line.key === undefined || typeof line.key === "string") &&
     (line.variantId === undefined || typeof line.variantId === "string") &&
+    (line.chatConversationIds === undefined ||
+      (Array.isArray(line.chatConversationIds) && line.chatConversationIds.length <= 4 &&
+        line.chatConversationIds.every((id) => typeof id === "string" && id.length > 0 && id.length <= 100))) &&
     (line.variantLabel === undefined || isLocalizedText(line.variantLabel)) &&
+    (line.selectedOptions === undefined || (Array.isArray(line.selectedOptions) && line.selectedOptions.every(isStoredOption))) &&
     (line.parentKey === undefined || typeof line.parentKey === "string") &&
     (line.addOnCount === undefined ||
       (typeof line.addOnCount === "number" && Number.isInteger(line.addOnCount) && line.addOnCount >= 0)) &&
@@ -179,7 +197,7 @@ function readStoredLines(): CartLine[] {
     const lines = parsed
       .filter(isCartLine)
       .slice(0, CART_MAX_LINES)
-      .map((line) => ({ ...line, key: line.key ?? cartLineKey(line.productId, line.variantId) }));
+      .map((line) => ({ ...line, key: line.key ?? cartLineKey(line.productId, line.variantId, line.selectedOptions?.map((option) => option.id)) }));
     const keys = new Set(lines.filter((line) => !line.parentKey).map((line) => line.key));
     return lines.filter((line) => !line.parentKey || keys.has(line.parentKey));
   } catch {
@@ -201,6 +219,43 @@ function withoutLine(current: CartLine[], lineKey: string): CartLine[] {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>(readStoredLines);
   const [isOpen, setIsOpen] = useState(false);
+  const { items: liveItems, status: menuStatus } = usePublicMenu();
+  const previousMenuRef = useRef(liveItems);
+  const hadReadyMenuRef = useRef(false);
+
+  useEffect(() => {
+    if (menuStatus !== "ready") return;
+    const liveProductIds = new Set(liveItems.flatMap((item) => item.productId ? [item.productId] : []));
+    const previousById = new Map(previousMenuRef.current.flatMap((item) => item.productId ? [[item.productId, item] as const] : []));
+    const currentById = new Map(liveItems.flatMap((item) => item.productId ? [[item.productId, item] as const] : []));
+    const changedInCart = new Map<string, { name: string; change: string }>();
+    const reconciled = reconcileLiveCartLines(lines, liveProductIds);
+    const nextLines = reconciled.flatMap((line) => {
+        const item = currentById.get(line.productId);
+        if (!item) return [];
+        const variant = itemVariants(item).find((candidate) => candidate.id === line.variantId);
+        const selectedOptions = (line.selectedOptions ?? []).flatMap((option) => {
+          const latest = item.customOptions?.find((candidate) => candidate.id === option.id);
+          return latest ? [latest] : [];
+        });
+        const price = variant?.price ?? item.price;
+        const stock = variant?.stock ?? item.stock ?? null;
+        const previous = previousById.get(line.productId);
+        const priceChanged = hadReadyMenuRef.current && previous && (previous.price !== item.price || previous.variants?.some((oldVariant) => oldVariant.price !== item.variants?.find((next) => next.id === oldVariant.id)?.price));
+        const stockChanged = hadReadyMenuRef.current && previous && (previous.stock !== item.stock || previous.available !== item.available);
+        if (priceChanged && line.price !== price) changedInCart.set(line.productId, { name: item.name.fa, change: "price" });
+        if (stockChanged && line.stock !== stock) changedInCart.set(line.productId, { name: item.name.fa, change: "stock" });
+        if (item.available === false || stock === 0) {
+          changedInCart.set(line.productId, { name: item.name.fa, change: "stock" });
+          return [];
+        }
+        return [{ ...line, name: item.name, image: item.image, price, stock, selectedOptions, ...(typeof stock === "number" ? { quantity: Math.min(line.quantity, stock) } : {}) }];
+      });
+    if (JSON.stringify(nextLines) !== JSON.stringify(lines)) setLines(nextLines);
+    for (const detail of changedInCart.values()) window.dispatchEvent(new CustomEvent("realtime:cart-catalog-change", { detail }));
+    previousMenuRef.current = liveItems;
+    hadReadyMenuRef.current = true;
+  }, [liveItems, menuStatus, lines]);
 
   // سبد بین بازدیدها می‌ماند؛ نوشتن در storage هر تغییر را ذخیره می‌کند.
   useEffect(() => {
@@ -226,7 +281,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [lines]);
 
-  const addItem = useCallback((item: MenuItem, quantity = 1, variantKey?: string) => {
+  const addItem = useCallback((item: MenuItem, quantity = 1, variantKey?: string, selectedOptionIds: string[] = [], sourceChatConversationId?: string) => {
     const productId = item.productId;
     if (!productId || !isOrderableItem(item)) return false;
 
@@ -241,7 +296,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const price = chosen?.price ?? item.price;
     const stock = chosen?.stock ?? item.stock ?? null;
     // واریانت‌های ثابت کاتالوگ شناسه دیتابیس ندارند؛ کلیدشان سطر را جدا نگه می‌دارد.
-    const key = cartLineKey(productId, chosen?.id ?? chosen?.key);
+    const uniqueOptionIds = [...new Set(selectedOptionIds)];
+    const availableOptions = item.customOptions ?? [];
+    const selectedOptions = availableOptions.filter((option) => uniqueOptionIds.includes(option.id));
+    if (selectedOptions.length !== uniqueOptionIds.length) return false;
+    const key = cartLineKey(productId, chosen?.id ?? chosen?.key, selectedOptions.map((option) => option.id));
 
     setLines((current) => {
       const cap = quantityCap(stock);
@@ -249,10 +308,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       const existing = current.find((line) => line.key === key);
       if (existing) {
+        const chatConversationIds = [...new Set([
+          ...(existing.chatConversationIds ?? []),
+          ...(sourceChatConversationId ? [sourceChatConversationId] : []),
+        ])].slice(0, 4);
         // قیمت و موجودی تازه از منو می‌آید تا سبد با دیتابیس عقب نماند.
         return current.map((line) =>
           line.key === key
-            ? { ...line, price, stock, quantity: Math.min(cap, line.quantity + quantity) }
+            ? {
+                ...line,
+                price,
+                stock,
+                selectedOptions,
+                quantity: Math.min(cap, line.quantity + quantity),
+                ...(chatConversationIds.length ? { chatConversationIds } : {}),
+              }
             : line,
         );
       }
@@ -263,8 +333,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         {
           key,
           productId,
+          ...(sourceChatConversationId ? { chatConversationIds: [sourceChatConversationId] } : null),
           ...(chosen?.id ? { variantId: chosen.id } : null),
           ...(chosen ? { variantLabel: chosen.label } : null),
+          ...(selectedOptions.length ? { selectedOptions } : null),
           ...(item.addOnCount ? { addOnCount: item.addOnCount } : null),
           id: item.id,
           name: item.name,
@@ -360,7 +432,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((sum, line) => sum + line.quantity, 0);
-    const total = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
+    const total = lines.reduce((sum, line) => sum + cartLineUnitPrice(line) * line.quantity, 0);
     return { lines, count, total, isOpen, addItem, setAddOn, setQuantity, removeItem, clear, openCart, closeCart };
   }, [lines, isOpen, addItem, setAddOn, setQuantity, removeItem, clear, openCart, closeCart]);
 

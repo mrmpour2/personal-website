@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, ShoppingBag, Sparkles, Trash2, X } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
 import { useAddOnPanel } from "@/context/AddOnContext";
-import { useCart, type CartLine } from "@/context/CartContext";
+import { cartLineUnitPrice, useCart, type CartLine } from "@/context/CartContext";
+import { useLoyalty } from "@/context/LoyaltyContext";
+import { fetchCheckoutCampaignOffers, type CheckoutCampaignOffers } from "@/api/orders";
 import { formatPrice } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useModalFocus } from "@/hooks/useModalFocus";
@@ -89,9 +91,14 @@ function CartLineRow({ line, isAddOn = false }: { line: CartLine; isAddOn?: bool
         {variantName ? (
           <p className="mt-1 text-xs font-bold text-bun-accent">{variantName}</p>
         ) : null}
+        {line.selectedOptions?.map((option) => (
+          <p key={option.id} className="mt-1 text-xs font-bold text-bun-muted">
+            {option.label[language]} · +{formatPrice(option.priceDelta, language)}
+          </p>
+        ))}
 
         <p className="mt-1 text-xs font-bold text-bun-muted">
-          {formatPrice(line.price, language)}
+          {formatPrice(cartLineUnitPrice(line), language)}
         </p>
 
         <div className="mt-2 flex items-center justify-between gap-2">
@@ -118,7 +125,7 @@ function CartLineRow({ line, isAddOn = false }: { line: CartLine; isAddOn?: bool
             </button>
           </div>
           <span className="text-sm font-black text-bun-text">
-            {formatPrice(line.price * line.quantity, language)}
+            {formatPrice(cartLineUnitPrice(line) * line.quantity, language)}
           </span>
         </div>
 
@@ -145,12 +152,25 @@ export function CartDrawer() {
   const { t } = useTranslation();
   const language = useLanguage();
   const { lines, count, total, isOpen, closeCart, clear } = useCart();
+  const { member } = useLoyalty();
+  const [campaignData, setCampaignData] = useState<{ subtotal: number; offers: CheckoutCampaignOffers } | null>(null);
   useSmoothScrollPause(isOpen);
+
+  useEffect(() => {
+    if (!isOpen || !member?.marketingConsent || member.verificationStatus !== "verified" || member.verifiedPhone !== member.phone || total <= 0) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      fetchCheckoutCampaignOffers(total).then((offers) => { if (active) setCampaignData({ subtotal: total, offers }); }).catch(() => undefined);
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [isOpen, member?.id, member?.marketingConsent, member?.verificationStatus, member?.verifiedPhone, member?.phone, total]);
 
   const panel = useRef<HTMLElement | null>(null);
   useModalFocus(panel, isOpen, closeCart);
 
   const hidden = language === "fa" ? "-100%" : "100%";
+  const upsell = campaignData?.subtotal === total ? campaignData.offers.upsell : null;
+  const upsellProgress = upsell ? Math.max(0, Math.min(100, (total / upsell.thresholdToman) * 100)) : 0;
 
   return (
     <AnimatePresence>
@@ -233,6 +253,7 @@ export function CartDrawer() {
                 </ul>
 
                 <footer className="space-y-3 border-t border-bun-line px-5 py-4">
+                  {upsell ? <div className="space-y-2 rounded-xl border border-bun-orange/40 bg-bun-surface px-3 py-3 text-xs font-bold text-bun-text" dir={language === "fa" ? "rtl" : "ltr"}><p>{upsell.remainingToman > 0 ? language === "fa" ? `${formatPrice(upsell.remainingToman, language)} تا دریافت ${upsell.rewardName}` : `${formatPrice(upsell.remainingToman, language)} until ${upsell.rewardName}` : language === "fa" ? `آستانه تکمیل شد؛ پاداش ${upsell.rewardName} در پرداخت قابل انتخاب است` : `Threshold reached; choose ${upsell.rewardName} at checkout`}</p><div role="progressbar" aria-label={language === "fa" ? "پیشرفت دریافت پاداش کمپین" : "Campaign reward progress"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(upsellProgress)} className="h-2 overflow-hidden rounded-full bg-bun-line"><div className="h-full rounded-full bg-bun-orange transition-[width]" style={{ width: `${upsellProgress}%` }} /></div></div> : null}
                   <div className="flex items-center justify-between text-sm font-bold text-bun-muted">
                     <span>{t("cart.subtotal")}</span>
                     <span className="font-display text-xl font-black text-bun-text">

@@ -51,14 +51,14 @@ export function Navbar() {
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-300",
         transparent
-          ? "bg-gradient-to-b from-black/50 to-transparent text-white"
+          ? "bg-linear-to-b from-black/50 to-transparent text-white"
           : "border-b border-bun-line bg-bun-paper/88 shadow-sm backdrop-blur-xl",
       )}
     >
       <nav className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" aria-label="Primary navigation">
         <NavLink
           to="/"
-          className="group inline-flex items-baseline gap-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-bun-gold"
+          className="group inline-flex items-baseline gap-1 rounded-4xld outline-none focus-visible:ring-2 focus-visible:ring-bun-gold"
           aria-label={t("brand.name")}
         >
           <span className={cn("font-display text-lg font-black tracking-tight sm:text-xl", transparent ? "text-white" : "text-bun-text")}>

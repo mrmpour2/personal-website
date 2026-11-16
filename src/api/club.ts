@@ -2,6 +2,7 @@ import { isAxiosError } from "axios";
 import { apiClient } from "./client";
 import type {
   ClubDashboard,
+  ClubCampaignMission,
   ClubMember,
   ClubRedemption,
   ClubRedemptionResult,
@@ -261,12 +262,35 @@ function parseList<T>(value: unknown, parse: (item: unknown) => T): T[] {
 
 function parseDashboard(value: unknown): ClubDashboard {
   const raw = record(value);
+  const missions = Array.isArray(raw.missions) ? raw.missions.map((value): ClubCampaignMission => {
+    const item = record(value);
+    const offer = item.offer === null ? null : (() => {
+      const value = record(item.offer);
+      return {
+        id: text(value.id),
+        type: value.type === "PRODUCT" ? "PRODUCT" as const : "DISCOUNT" as const,
+        productName: typeof value.productName === "string" ? value.productName : null,
+        discountToman: value.discountToman === null ? null : number(value.discountToman),
+        minimumOrderToman: value.minimumOrderToman === null ? null : number(value.minimumOrderToman),
+      };
+    })();
+    return {
+      id: text(item.id),
+      campaignId: text(item.campaignId),
+      name: text(item.name),
+      type: item.type === "UPSELL" ? "UPSELL" : "SECOND_PURCHASE",
+      enrolledAt: text(item.enrolledAt),
+      expiresAt: typeof item.expiresAt === "string" ? item.expiresAt : null,
+      offer,
+    };
+  }) : [];
   return {
     member: parseMember(raw.member),
     pendingPoints: number(raw.pendingPoints, { integer: true }),
     transactions: parseList(raw.transactions, parseTransaction),
     redemptions: parseList(raw.redemptions, parseRedemption),
     rewards: parseList(raw.rewards, parseReward),
+    missions,
   };
 }
 

@@ -41,6 +41,11 @@ export interface PublicMenuItem {
   currency: string;
   image: string | null;
   videoUrl?: string | null;
+  rating?: number;
+  reviewCount?: number;
+  editorialScore?: number;
+  ingredientItems?: Array<{ name: string; nameEn?: string | null; sortOrder: number }>;
+  customOptions?: Array<{ id: string; label: string; labelEn?: string | null; priceDelta: number; sortOrder: number }>;
   stock: number;
   available: boolean;
   /**
@@ -111,6 +116,8 @@ function toMenuItem(raw: PublicMenuItem): MenuItem {
     ? raw.variants.filter((candidate) => candidate && candidate.id).map(toMenuItemVariant)
     : [];
   const addOnCount = typeof raw.addOnCount === "number" && raw.addOnCount > 0 ? raw.addOnCount : 0;
+  const ingredientItems = Array.isArray(raw.ingredientItems) ? raw.ingredientItems : [];
+  const customOptions = Array.isArray(raw.customOptions) ? raw.customOptions : [];
 
   return {
     id: raw.slug || raw.id,
@@ -121,15 +128,31 @@ function toMenuItem(raw: PublicMenuItem): MenuItem {
     image: (raw.image ?? "").trim(),
     videoUrl: raw.videoUrl?.trim() || null,
     imageAlt: text,
+    ...(typeof raw.rating === "number" && typeof raw.reviewCount === "number" && raw.reviewCount > 0
+      ? { rating: raw.rating, reviewCount: raw.reviewCount }
+      : null),
+    ...(typeof raw.editorialScore === "number" ? { score: raw.editorialScore } : null),
     // آیتم دارای سایز، قیمت «از» (ارزان‌ترین واریانت) را نشان می‌دهد.
     price: variants.length ? Math.min(...variants.map((candidate) => candidate.price)) : raw.price,
     ...(variants.length ? { variants } : null),
-    ingredients: raw.ingredients?.trim()
+    ingredients: ingredientItems.length
+      ? {
+          en: ingredientItems.map((item) => item.nameEn?.trim() || item.name.trim()).filter(Boolean),
+          fa: ingredientItems.map((item) => item.name.trim()).filter(Boolean),
+        }
+      : raw.ingredients?.trim()
       ? { en: [raw.ingredients.trim()], fa: [raw.ingredients.trim()] }
       : { en: [], fa: [] },
     allergenInfo: raw.allergenInfo?.trim() || "نیاز به مقدار واقعی",
     purchaseConditions: raw.purchaseConditions?.trim() || "نیاز به مقدار واقعی",
     options: { en: [], fa: [] },
+    ...(customOptions.length ? {
+      customOptions: customOptions.map((option) => ({
+        id: option.id,
+        label: { fa: option.label.trim(), en: option.labelEn?.trim() || option.label.trim() },
+        priceDelta: option.priceDelta,
+      })),
+    } : null),
     productId: raw.productId,
     available: raw.available,
     stock: raw.stock,
@@ -150,11 +173,38 @@ function isPublicMenuItemResponse(value: unknown): value is PublicMenuItemRespon
 }
 
 /** آخرین پاسخ موفق؛ برای نمایش فوری هنگام جابه‌جایی بین صفحه‌ها (بدون فلش لودینگ). */
+const MENU_CACHE_TTL_MS = 30_000;
 let menuCache: MenuItem[] | null = null;
+let menuCacheExpiresAt = 0;
 let menuRequest: Promise<MenuItem[]> | null = null;
+
+export function patchPublicMenuProduct(productId: string, changes: Record<string, unknown>): MenuItem[] | null {
+  if (!menuCache) return null;
+  let matched = false;
+  menuCache = menuCache.flatMap((item) => {
+    if (item.productId !== productId) return item;
+    matched = true;
+    if (changes.deleted === true) return [];
+    const next = { ...item };
+    if (typeof changes.name === "string") next.name = { en: typeof changes.nameEn === "string" ? changes.nameEn : changes.name, fa: changes.name };
+    if (typeof changes.description === "string") next.description = { en: typeof changes.descriptionEn === "string" ? changes.descriptionEn : changes.description, fa: changes.description };
+    if (typeof changes.price === "number") next.price = changes.price;
+    if (typeof changes.stock === "number") next.stock = changes.stock;
+    if (typeof changes.imageUrl === "string" || changes.imageUrl === null) next.image = changes.imageUrl ?? "";
+    if (typeof changes.isActive === "boolean") next.available = changes.isActive && (next.stock ?? 0) > 0;
+    if (typeof changes.stock === "number") next.available = changes.stock > 0 && changes.isActive !== false;
+    return next;
+  });
+  if (matched) window.dispatchEvent(new CustomEvent("catalog:updated", { detail: { productId, changes } }));
+  return menuCache;
+}
 
 /** فهرست کش‌شده اگر تا این لحظه رسیده باشد، وگرنه `null`. */
 export function peekPublicMenu(): MenuItem[] | null {
+  if (menuCache && Date.now() >= menuCacheExpiresAt) {
+    menuCache = null;
+    menuCacheExpiresAt = 0;
+  }
   return menuCache;
 }
 
@@ -173,11 +223,14 @@ async function requestPublicMenu(): Promise<MenuItem[]> {
  * یک درخواست بیشتر نزنند. درخواست ناموفق کش نمی‌شود تا بار بعد دوباره تلاش شود.
  */
 export function fetchPublicMenu(): Promise<MenuItem[]> {
-  if (menuCache) return Promise.resolve(menuCache);
+  const cached = peekPublicMenu();
+  if (cached) return Promise.resolve(cached);
 
   menuRequest ??= requestPublicMenu()
     .then((items) => {
       menuCache = items;
+      menuCacheExpiresAt = Date.now() + MENU_CACHE_TTL_MS;
+      menuRequest = null;
       return items;
     })
     .catch((error: unknown) => {
@@ -188,6 +241,14 @@ export function fetchPublicMenu(): Promise<MenuItem[]> {
   return menuRequest;
 }
 
+/** Force a fresh menu read after an SSE cursor falls outside retained history. */
+export async function refreshPublicMenu(): Promise<MenuItem[]> {
+  menuCache = null;
+  menuCacheExpiresAt = 0;
+  menuRequest = null;
+  return fetchPublicMenu();
+}
+
 /**
  * یک آیتم منو با slug یا cuid.
  *
@@ -196,7 +257,7 @@ export function fetchPublicMenu(): Promise<MenuItem[]> {
  * اضافه شده‌اند هم پیدا شوند. `null` یعنی آیتم عمومی وجود ندارد.
  */
 export async function fetchPublicMenuItem(id: string): Promise<MenuItem | null> {
-  const cached = menuCache?.find((item) => item.id === id || item.productId === id);
+  const cached = peekPublicMenu()?.find((item) => item.id === id || item.productId === id);
   if (cached) return cached;
 
   try {

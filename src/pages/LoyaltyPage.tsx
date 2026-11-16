@@ -87,6 +87,7 @@ export default function LoyaltyPage() {
     rewards,
     transactions,
     redemptions,
+    missions,
     loading,
     error,
     refresh,
@@ -370,6 +371,19 @@ export default function LoyaltyPage() {
                   <div className="p-6 sm:p-8">
                     {member.verificationStatus !== "verified" && <ClubOwnershipVerification member={member} />}
                     <p className="my-3 text-sm font-bold">{language === "fa" ? "امتیاز در انتظار تأیید: " : "Pending points: "}{number(pendingPoints)}</p>
+                    {missions.length > 0 && (
+                      <section aria-labelledby="campaign-missions-title" className="my-6 space-y-3">
+                        <h3 id="campaign-missions-title" className="font-display text-xl font-black text-bun-text">{language === "fa" ? "مأموریت‌های باشگاه" : "Club missions"}</h3>
+                        {missions.map((mission) => (
+                          <article key={mission.id} className="rounded-2xl border border-bun-orange/30 bg-bun-paper p-4 text-bun-text">
+                            <p className="font-black">{mission.name}</p>
+                            <p className="mt-1 text-sm text-bun-muted">{mission.type === "SECOND_PURCHASE" ? (language === "fa" ? "برای خرید دوم تا پایان مهلت خرید کنید." : "Complete a second purchase before the deadline.") : (language === "fa" ? "به آستانهٔ سبد خرید برسید تا پاداش بگیرید." : "Reach the cart threshold to earn a reward.")}</p>
+                            {mission.offer && <p className="mt-2 text-sm font-bold">{mission.offer.type === "PRODUCT" ? `${language === "fa" ? "هدیه: " : "Reward: "}${mission.offer.productName ?? ""}` : `${language === "fa" ? "تخفیف: " : "Discount: "}${number(mission.offer.discountToman ?? 0)} ${language === "fa" ? "تومان" : "Toman"}`}</p>}
+                            {mission.expiresAt && <p className="mt-1 text-xs text-bun-muted">{language === "fa" ? "مهلت: " : "Deadline: "}{new Intl.DateTimeFormat(language === "fa" ? "fa-IR" : "en-US", { dateStyle: "medium" }).format(new Date(mission.expiresAt))}</p>}
+                          </article>
+                        ))}
+                      </section>
+                    )}
                     <div className="flex items-end justify-between gap-4">
                       <span className="font-display text-2xl font-black text-bun-text">
                         {nextTier ? nextTier.name[language] : t("loyalty.topTierShort")}

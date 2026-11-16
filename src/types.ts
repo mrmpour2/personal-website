@@ -39,6 +39,12 @@ export interface MenuItemVariant {
   available?: boolean;
 }
 
+export interface MenuItemOption {
+  id: string;
+  label: LocalizedText;
+  priceDelta: number;
+}
+
 export interface MenuItem {
   id: string;
   category: MenuCategory;
@@ -54,12 +60,14 @@ export interface MenuItem {
    * پنل می‌آیند این فیلدها را ندارند و رابط کاربری باید آن‌ها را پنهان کند.
    */
   rating?: number;
+  reviewCount?: number;
   score?: number;
   featured?: boolean;
   ingredients: Record<Language, string[]>;
   allergenInfo?: string;
   purchaseConditions?: string;
   options: Record<Language, string[]>;
+  customOptions?: MenuItemOption[];
   /**
    * واریانت‌های قابل انتخاب (اندازه/بسته). خالی یا تعریف‌نشده یعنی آیتم فقط یک
    * قیمت ثابت دارد و `price` همان قیمت نهایی است.
@@ -151,9 +159,9 @@ export interface ClubTierSnapshot {
 }
 
 export interface ClubMember {
-  verificationStatus: string;
   birthDate: string | null;
   marketingConsent: boolean;
+  verificationStatus: string;
   verifiedPhone: string | null;
   legacyUntil: string | null;
   id: string;
@@ -233,6 +241,17 @@ export interface ClubDashboard {
   transactions: ClubTransaction[];
   redemptions: ClubRedemption[];
   rewards: ClubReward[];
+  missions: ClubCampaignMission[];
+}
+
+export interface ClubCampaignMission {
+  id: string;
+  campaignId: string;
+  name: string;
+  type: "SECOND_PURCHASE" | "UPSELL";
+  enrolledAt: string;
+  expiresAt: string | null;
+  offer: { id: string; type: "PRODUCT" | "DISCOUNT"; productName: string | null; discountToman: number | null; minimumOrderToman: number | null } | null;
 }
 
 /** پاسخ استرداد؛ `duplicate` یعنی همان کلید قبلاً خرج شده و نتیجه تکرار شده است. */

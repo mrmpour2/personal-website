@@ -1,5 +1,5 @@
 {
-  "brand": { "name": "Shish Burger Line", "pageTitle": "Shish Burger Line | Built for the next bite", "tagline": "Built for the next bite." },
+  "brand": { "name": "Shish Burger Elin", "pageTitle": "Shish Burger Elin | Built for the next bite", "tagline": "Built for the next bite." },
   "nav": { "home": "Home", "menu": "Menu", "loyalty": "Customer Club", "blog": "Stories", "faq": "FAQ", "support": "Support", "cart": "Open order", "cartWithCount": "Open order ({{count}})", "theme": "Switch theme", "language": "فارسی", "openMenu": "Open navigation", "closeMenu": "Close navigation" },
   "common": { "viewMenu": "Explore the menu", "viewDetails": "View details", "readMore": "Read story", "minutes": "min read", "rating": "rating", "loading": "Loading fresh content...", "back": "Go back", "joinNow": "Join شیش برگر الین", "learnMore": "Learn more" },
   "home": {
@@ -48,7 +48,7 @@
     "kicker": "Made when you order",
     "title": "Choose your next bite.",
     "description": "Focused favorites, crisp sides and cold drinks. Nothing waits under a lamp.",
-    "categories": { "burgers": "Burgers", "pizza": "Pizza", "sides": "Sides", "drinks": "Drinks", "combos": "Combos" },
+    "categories": { "burgers": "Burgers", "pizza": "Pizza","Sandwich":"Sandwich", "sides": "Sides", "drinks": "Drinks", "combos": "Combos" },
     "empty": "Nothing in this category yet.",
     "unavailable": "Sold out",
     "offline": "The live menu is unreachable right now — showing the saved menu. Online ordering is unavailable until it comes back.",
@@ -302,7 +302,9 @@
     "viewCart": "Your order ({{count}})",
     "sendError": "Your message could not be delivered. Retry without losing its text.",
     "pending": "{{count}} message(s) are queued to send.",
-    "retry": "Retry"
+      "retry": "Retry",
+      "newConversation": "New conversation",
+      "newConversationError": "A new conversation could not be started. Please try again."
   },
   "cart": {
     "title": "Your order",
@@ -391,7 +393,7 @@
   },
   "support": { "title": "Customer support", "description": "Submit a request or use your tracking code to read our reply.", "newTab": "New ticket", "trackTab": "Track ticket", "name": "Name", "phone": "Mobile number", "subject": "Subject", "category": "Category", "message": "Message", "orderNumber": "Order number (optional)", "attachment": "Attachment (JPG, PNG, WebP or PDF; up to 4 MB)", "submit": "Submit request", "trackingCode": "Tracking code", "trackingHint": "Keep this code. You need it and the same mobile number to see replies.", "track": "View ticket", "reply": "Your reply", "sendReply": "Send reply", "captcha": "Complete the anti-spam check.", "success": "Your request was submitted.", "error": "The request could not be submitted. Please try again.", "order": "Order", "payment": "Payment", "delivery": "Delivery", "product": "Product", "other": "Other", "new": "New", "inProgress": "In review", "answered": "Answered", "closed": "Closed", "noMessages": "No messages to show.", "faqLink": "Browse FAQs" },
   "faq": { "title": "Frequently asked questions", "description": "Answers about orders, payment, and delivery.", "empty": "There are no published questions yet.", "error": "Could not load questions." },
-  "footer": { "tagline": "Hot grill. Cold drinks. Birjand nights.", "quickLinks": "Quick links", "contact": "Contact", "follow": "Follow", "instagramHint": "Nightly drops and stories from the grill.", "location": "Find us", "mapTitle": "Shish Burger Line on the map", "openInMaps": "Open in Google Maps", "directions": "Get directions", "phone": "05632420101", "copyright": "Shish Burger Line. All rights reserved.", "credit": "by mr.mpour72@gmail.com" },
+  "footer": { "tagline": "Hot grill. Cold drinks. Birjand nights.", "quickLinks": "Quick links", "contact": "Contact", "follow": "Follow", "instagramHint": "Nightly drops and stories from the grill.", "location": "Find us", "mapTitle": "Shish Burger Elin on the map", "openInMaps": "Open in Google Maps", "directions": "Get directions", "phone": "05632420101", "copyright": "Shish Burger Elin. All rights reserved.", "credit": "by mr.mpour72@gmail.com" },
   "policy": { "linksLabel": "Store policies", "shippingTitle": "Shipping and delivery", "returnTitle": "Cancellation and refunds", "privacyTitle": "Privacy" },
   "notFound": { "title": "This table is empty.", "text": "The page you requested is not on tonight's menu.", "action": "Return home" }
 }

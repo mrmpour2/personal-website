@@ -5,18 +5,19 @@ import { Link } from "react-router-dom";
 import { AddToCartButton } from "@/components/AddToCartButton";
 import { MenuItemImage } from "@/components/MenuItemImage";
 import { MotionText } from "@/components/MotionText";
+import { MockFallbackMarker } from "@/components/MockFallbackMarker";
 import { buttonVariants } from "@/components/ui/Button";
 import {
   featuredMenuItems,
   formatPrice,
   hasVariants,
   itemVariants,
-  mergeCatalogItems,
   priceRange,
 } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
 import { usePublicMenu } from "@/hooks/usePublicMenu";
 import { prefersReducedMotion } from "@/utils/reducedMotion";
+import { resolveCatalogItems } from "@/utils/catalogSource.js";
 import type { MenuItem } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -52,10 +53,9 @@ function cardIndexLabel(index: number, language: "fa" | "en"): string {
  * ناموجود به انتهای ریل می‌روند تا کارت‌های قابل سفارش جلوتر باشند. هیچ داده‌ای
  * ساخته نمی‌شود؛ فقط همان محصولات واقعی منو نمایش داده می‌شوند.
  */
-function selectFeaturedItems(catalog: readonly MenuItem[], live: readonly MenuItem[]): MenuItem[] {
-  const merged = mergeCatalogItems(catalog, live);
-  const orderable = merged.filter((item) => item.available !== false);
-  const soldOut = merged.filter((item) => item.available === false);
+function selectFeaturedItems(items: readonly MenuItem[]): MenuItem[] {
+  const orderable = items.filter((item) => item.available !== false);
+  const soldOut = items.filter((item) => item.available === false);
   return [...orderable, ...soldOut].slice(0, MAX_FEATURED_ITEMS);
 }
 
@@ -105,7 +105,6 @@ function FeaturedCard({ item, index, register }: FeaturedCardProps) {
     typeof item.stock === "number" &&
     item.stock > 0 &&
     item.stock <= LOW_STOCK_THRESHOLD;
-  const description = (item.description[language] ?? "").trim();
   const kickerTracking = language === "fa" ? "tracking-normal" : "tracking-[0.24em]";
 
   return (
@@ -308,12 +307,15 @@ function FeaturedRailEndCard() {
 export function FeaturedRail() {
   const { t } = useTranslation();
   const language = useLanguage();
-  const { items: liveItems, status } = usePublicMenu();
+  const { items: liveItems, status, fallbackEligible, usingMockFallback } = usePublicMenu();
   const trackRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
 
   const isRtl = language === "fa";
-  const items = useMemo(() => selectFeaturedItems(featuredMenuItems, liveItems), [liveItems]);
+  const items = useMemo(
+    () => selectFeaturedItems(resolveCatalogItems(status, liveItems, featuredMenuItems, fallbackEligible)),
+    [status, liveItems, fallbackEligible],
+  );
   const hasItems = items.length > 0;
   const itemCount = items.length;
   const previousCount = useRef(itemCount);
@@ -407,6 +409,7 @@ export function FeaturedRail() {
 
   return (
     <section className="overflow-hidden bg-bun-paper py-20 sm:py-24 lg:py-12" data-horizontal-gallery="">
+      <MockFallbackMarker active={usingMockFallback} />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
           <div className="max-w-2xl" data-reveal-group="">

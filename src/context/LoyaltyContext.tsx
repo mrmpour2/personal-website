@@ -25,6 +25,7 @@ import {
 } from "@/api/club";
 import type {
   ClubDashboard,
+  ClubCampaignMission,
   ClubMember,
   ClubRedemption,
   ClubRedemptionResult,
@@ -51,6 +52,7 @@ interface LoyaltyState {
   rewards: ClubReward[];
   transactions: ClubTransaction[];
   redemptions: ClubRedemption[];
+  missions: ClubCampaignMission[];
   /** در حال خواندن نشست/کاتالوگ در بار اول یا تلاش دوباره. */
   loading: boolean;
   /** خطای شبکه یا سرور (خطای ۴۰۱ یعنی مهمان است، نه خطا). */
@@ -81,6 +83,7 @@ const EMPTY_STATE: LoyaltyState = {
   rewards: [],
   transactions: [],
   redemptions: [],
+  missions: [],
   loading: true,
   error: null,
 };
@@ -112,6 +115,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       rewards: dashboard.rewards,
       transactions: dashboard.transactions,
       redemptions: dashboard.redemptions,
+      missions: dashboard.missions,
       loading: false,
       error: null,
     });
@@ -142,6 +146,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       rewards: unauthorized ? asGuestRewards(rewards) : current.rewards,
       transactions: unauthorized ? [] : current.transactions,
       redemptions: unauthorized ? [] : current.redemptions,
+      missions: unauthorized ? [] : current.missions,
       loading: false,
       error: unauthorized
         ? rewardsResult.status === "rejected"
@@ -169,6 +174,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
           member: null,
           transactions: [],
           redemptions: [],
+          missions: [],
           loading: false,
           error: null,
         }));
@@ -216,6 +222,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       rewards: asGuestRewards(current.rewards),
       transactions: [],
       redemptions: [],
+      missions: [],
       loading: false,
       error: null,
     }));

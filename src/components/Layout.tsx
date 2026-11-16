@@ -8,6 +8,9 @@ import { Navbar } from "@/components/Navbar";
 import { AddOnPanelProvider } from "@/context/AddOnContext";
 import { useMotionSystem } from "@/hooks/useMotionSystem";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
+import { LiveUpdates } from "@/components/LiveUpdates";
+import { RestaurantAvailabilityStatus } from "@/components/RestaurantAvailabilityStatus";
+import { RestaurantAvailabilityProvider } from "@/context/RestaurantAvailabilityContext";
 
 const ChatBox = lazy(() => import("@/components/ChatBox"));
 
@@ -54,13 +57,15 @@ export function Layout() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  return (
+  return <RestaurantAvailabilityProvider>
     <div className="min-h-screen bg-bun-paper text-bun-text">
       <ScrollManager />
+      <LiveUpdates />
       {/* پنل مخلفات بالای همه است تا دکمه‌های «افزودن به سبد» هر صفحه (و کشوی
           سبد) بتوانند همان پنل را باز کنند. */}
       <AddOnPanelProvider>
         <Navbar />
+        <RestaurantAvailabilityStatus />
         <main>
           <Outlet />
         </main>
@@ -79,5 +84,5 @@ export function Layout() {
         </Suspense>
       ) : null}
     </div>
-  );
+  </RestaurantAvailabilityProvider>;
 }

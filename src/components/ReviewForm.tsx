@@ -75,7 +75,6 @@ function SuccessPanel({
   onReset: () => void;
 }) {
   const { t } = useTranslation();
-  const language = useLanguage();
 
   return (
     <div role="status" className="rounded-3xl border border-bun-line bg-bun-paper p-6 sm:p-8">

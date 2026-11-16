@@ -1,11 +1,11 @@
 import { ShoppingBag } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PageIntro } from "@/components/PageIntro";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { Button, buttonVariants } from "@/components/ui/Button";
-import { useCart } from "@/context/CartContext";
+import { cartLineUnitPrice, useCart } from "@/context/CartContext";
 import { useLoyalty } from "@/context/LoyaltyContext";
 import {
   createOrder,
@@ -16,12 +16,17 @@ import {
   cancelCheckoutOrder,
   errorMessageFrom,
   fetchPaymentConfig,
+  fetchCheckoutCampaignOffers,
   errorCodeFrom,
   type PaymentConfig,
   type PaymentMethod,
+  type CheckoutCampaignOffers,
 } from "@/api/orders";
 import { formatPrice, pointsForAmount } from "@/data/content";
 import { useLanguage } from "@/hooks/useLanguage";
+import { RestaurantAvailabilityStatus } from "@/components/RestaurantAvailabilityStatus";
+import { useRestaurantAvailability } from "@/context/RestaurantAvailabilityContext";
+import { canSubmitCheckoutOrder } from "@/utils/restaurantAvailability";
 import { forgetPendingOrder, peekPendingOrder, rememberPendingOrder } from "@/utils/orderReward";
 import { isValidPhone } from "@/utils/phone";
 import { getChatSessionId } from "@/utils/session";
@@ -66,16 +71,13 @@ function Field({
 
 type MessageTone = "error" | "info" | "success";
 
-interface CompletedOrder {
-  orderNumber: string;
-  total: number;
-}
-
 export default function CheckoutPage() {
   const { t } = useTranslation();
   const language = useLanguage();
   const { lines, total, clear } = useCart();
   const { member } = useLoyalty();
+  const { availability, unavailable } = useRestaurantAvailability();
+  const navigate = useNavigate();
 
   const [config, setConfig] = useState<PaymentConfig | null>(null);
   const [configFailed, setConfigFailed] = useState(false);
@@ -83,6 +85,11 @@ export default function CheckoutPage() {
   const [name, setName] = useState(member?.name ?? "");
   const [phone, setPhone] = useState(member?.phone ?? "");
   const [email, setEmail] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [campaignOffers, setCampaignOffers] = useState<CheckoutCampaignOffers | null>(null);
+  const [useMissionReward, setUseMissionReward] = useState(false);
+  const [useUpsellReward, setUseUpsellReward] = useState(false);
   const [address, setAddress] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -102,7 +109,6 @@ export default function CheckoutPage() {
   useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer); }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: MessageTone; text: string } | null>(null);
-  const [completed, setCompleted] = useState<CompletedOrder | null>(null);
   /** سفارش در حال پیگیری کاربر. */
   const [pendingOrder, setPendingOrder] = useState<{ id: string; orderNumber: string; total: number } | null>(null);
 
@@ -121,6 +127,18 @@ export default function CheckoutPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setCampaignOffers(null);
+    setUseMissionReward(false);
+    setUseUpsellReward(false);
+    if (!member?.marketingConsent || member.verificationStatus !== "verified" || member.verifiedPhone !== member.phone || total <= 0) return () => { active = false; };
+    const timer = window.setTimeout(() => {
+      fetchCheckoutCampaignOffers(total).then((offers) => { if (active) setCampaignOffers(offers); }).catch(() => { if (active) setCampaignOffers(null); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [member?.id, member?.marketingConsent, member?.verificationStatus, member?.verifiedPhone, member?.phone, total]);
+
   // سفارش نیمه‌کاره: همان را دوباره پیگیری می‌کنیم — ولی
   // فقط اگر سبد همان سبد آن سفارش باشد؛ سبدِ عوض‌شده باید سفارش تازه بگیرد.
   useEffect(() => {
@@ -137,7 +155,15 @@ export default function CheckoutPage() {
         setPendingOrder(null); setReservationExpiry(null); setReservedCartKey(null); forgetPendingOrder();
         const key = crypto.randomUUID(); setOrderKey(key); sessionStorage.setItem("checkout-idempotency", key);
       }
-    }).catch(() => setVerifiedPhone(""));
+    }).catch(() => {
+      setVerifiedPhone("");
+      setMessage({
+        tone: "info",
+        text: language === "fa"
+          ? "برای مدیریت رزرو قبلی، شمارهٔ همین سفارش را دوباره با کد پیامکی تأیید کنید؛ سپس می‌توانید رزرو را لغو کنید یا ادامه دهید."
+          : "To manage this reservation, verify this order’s phone again by SMS. You can then cancel the reservation or continue.",
+      });
+    });
     // فقط یک‌بار در mount؛ تغییر سبد نباید پیام را دوباره بسازد.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,6 +178,7 @@ export default function CheckoutPage() {
     verifiedPhone === phone.trim() && Boolean(verifiedPhone) &&
     (!reservationExpiry || new Date(reservationExpiry).getTime() > clock) &&
     (!reservedCartKey || reservedCartKey === cartFingerprint(lines)) &&
+    canSubmitCheckoutOrder({ pendingOrder, availability, unavailable }) &&
     !busy &&
     config !== null &&
     method === "CASH_ON_DELIVERY" && config.cod.enabled;
@@ -185,17 +212,28 @@ export default function CheckoutPage() {
       let order = pendingOrder;
       if (!order) {
         const lineByKey = new Map(lines.map((line) => [line.key, line]));
+        const chatConversationIds = [...new Set(lines.flatMap((line) => line.chatConversationIds ?? []))];
         if (verifiedPhone !== phone.trim()) throw new Error("Mobile verification is required.");
         const created = await createOrder({
           idempotencyKey: orderKey,
-          sessionId: getChatSessionId(),
+          cartSnapshotSessionId: getChatSessionId(),
+          ...(chatConversationIds.length === 1 ? { chatConversationId: chatConversationIds[0] } : {}),
           customerName: name.trim(),
           customerPhone: phone.trim(),
           ...(email.trim() ? { customerEmail: email.trim() } : {}),
           shippingAddress: address.trim(),
+          marketingConsent,
+          ...(couponCode.trim() ? { couponCode: couponCode.trim() } : {}),
+          ...(useMissionReward && campaignOffers?.mission ? { campaignOfferId: campaignOffers.mission.offerId } : {}),
+          ...(useUpsellReward && campaignOffers?.upsell ? { upsellCampaignId: campaignOffers.upsell.campaignId, upsellTierIndex: campaignOffers.upsell.tierIndex } : {}),
           items: lines.flatMap((line) => {
             const variant = line.variantId ? { variantId: line.variantId } : null;
-            if (!line.parentKey) return [{ productId: line.productId, ...variant, quantity: line.quantity }];
+            if (!line.parentKey) return [{
+              productId: line.productId,
+              ...variant,
+              quantity: line.quantity,
+              ...(line.selectedOptions?.length ? { selectedOptionIds: line.selectedOptions.map((option) => option.id) } : null),
+            }];
 
             // مخلفات بی‌قلم اصلی هرگز فرستاده نمی‌شود (سبد خودش این حالت را
             // نمی‌سازد؛ این فقط یک محافظ است).
@@ -225,34 +263,14 @@ export default function CheckoutPage() {
       clear();
       forgetPendingOrder();
       setPendingOrder(null);
-      setCompleted({ orderNumber: confirmed.orderNumber, total: confirmed.totalAmount });
+      sessionStorage.setItem("last-checkout-order-id", confirmed.id);
+      navigate(`/order/${encodeURIComponent(confirmed.id)}`);
     } catch (error) {
       setMessage({ tone: "error", text: errorMessageFrom(error, t("checkout.errorGeneric")) });
     } finally {
       setBusy(false);
     }
   };
-
-  if (completed) {
-    return (
-      <>
-        <PageIntro
-          kicker={t("checkout.kicker")}
-          title={t("checkout.successTitle")}
-          description={t("checkout.successText", { orderNumber: completed.orderNumber, total: formatPrice(completed.total, language) })}
-        />
-        <section className="bg-bun-paper py-16 sm:py-24">
-          <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-            <div>
-              <Link to="/menu" className={buttonVariants({ size: "lg", className: "mt-8" })}>
-                {t("checkout.backToMenu")}
-              </Link>
-            </div>
-          </div>
-        </section>
-      </>
-    );
-  }
 
   return (
     <>
@@ -261,6 +279,9 @@ export default function CheckoutPage() {
         title={t("checkout.title")}
         description={t("checkout.description")}
       />
+      <div className="mx-auto mt-6 max-w-6xl px-4 sm:px-6 lg:px-8">
+        <RestaurantAvailabilityStatus inline />
+      </div>
 
       <section className="bg-bun-paper py-16 sm:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -322,7 +343,13 @@ export default function CheckoutPage() {
                       {verifiedPhone === phone.trim() && verifiedPhone ? <p role="status">{language === "fa" ? "موبایل تأیید شد." : "Phone verified."}</p> : null}
                       {reservationExpiry ? <p role="status">{language === "fa" ? "رزرو تا " : "Reserved until "}{new Date(reservationExpiry).toLocaleTimeString(language === "fa" ? "fa-IR" : "en-US", { hour: "2-digit", minute: "2-digit" })} · {Math.floor(Math.max(0, new Date(reservationExpiry).getTime() - clock) / 60000)}:{String(Math.floor(Math.max(0, new Date(reservationExpiry).getTime() - clock) / 1000) % 60).padStart(2, "0")}</p> : null}
                       {pendingOrder ? <Button type="button" disabled={busy} onClick={async () => {
-                        setBusy(true); try { await cancelCheckoutOrder(pendingOrder.id); setPendingOrder(null); setReservationExpiry(null); setReservedCartKey(null); forgetPendingOrder(); const key = crypto.randomUUID(); setOrderKey(key); sessionStorage.setItem("checkout-idempotency", key); }
+                        setBusy(true); try {
+                          await cancelCheckoutOrder(pendingOrder.id);
+                          setPendingOrder(null); setReservationExpiry(null); setReservedCartKey(null); forgetPendingOrder();
+                          setPhone(""); setVerifiedPhone(""); setChallengeId(""); setOtpCode("");
+                          const key = crypto.randomUUID(); setOrderKey(key); sessionStorage.setItem("checkout-idempotency", key);
+                          setMessage({ tone: "success", text: language === "fa" ? "رزرو لغو شد. حالا می‌توانید شمارهٔ دیگری وارد کنید." : "Reservation cancelled. You can enter a different phone number now." });
+                        }
                         catch(error) { setMessage({ tone: "error", text: errorMessageFrom(error) }); } finally { setBusy(false); }
                       }}>{language === "fa" ? "لغو رزرو و شروع دوباره" : "Cancel reservation and start again"}</Button> : null}
                     </div>
@@ -349,6 +376,10 @@ export default function CheckoutPage() {
                         className={cn(inputClass, "h-auto resize-y py-4 leading-7")}
                       />
                     </Field>
+                  {campaignOffers?.mission ? <label className="flex items-start gap-3 rounded-xl border border-bun-orange/40 bg-bun-paper p-4 text-sm text-bun-text"><input type="checkbox" checked={useMissionReward} onChange={(event) => setUseMissionReward(event.target.checked)} className="mt-1"/><span>{language === "fa" ? `مأموریت خرید دوم: پاداش ${campaignOffers.mission.rewardName} تا ${new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium" }).format(new Date(campaignOffers.mission.expiresAt))}` : `Second-purchase mission: ${campaignOffers.mission.rewardName} until ${new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(campaignOffers.mission.expiresAt))}`}</span></label> : null}
+                  {campaignOffers?.upsell ? <label className="flex items-start gap-3 rounded-xl border border-bun-orange/40 bg-bun-paper p-4 text-sm text-bun-text"><input type="checkbox" checked={useUpsellReward} onChange={(event) => setUseUpsellReward(event.target.checked)} className="mt-1"/><span>{language === "fa" ? campaignOffers.upsell.remainingToman > 0 ? `${formatPrice(campaignOffers.upsell.remainingToman, language)} تا دریافت ${campaignOffers.upsell.rewardName}` : `آستانه تکمیل شد؛ پاداش ${campaignOffers.upsell.rewardName} را به سفارش اضافه کن` : campaignOffers.upsell.remainingToman > 0 ? `${formatPrice(campaignOffers.upsell.remainingToman, language)} until ${campaignOffers.upsell.rewardName}` : `Threshold reached; add ${campaignOffers.upsell.rewardName} reward`}</span></label> : null}
+                  <Field id="checkout-coupon" label={language === "fa" ? "کد تخفیف" : "Coupon code"}><input id="checkout-coupon" value={couponCode} onChange={event => setCouponCode(event.target.value)} dir="ltr" className={inputClass} autoComplete="off" /></Field>
+                  <label className="flex items-start gap-2 text-sm text-bun-text"><input type="checkbox" checked={marketingConsent} onChange={event => setMarketingConsent(event.target.checked)} className="mt-1"/><span>{language === "fa" ? "مایلم پیامک‌های تبلیغاتی دریافت کنم (اختیاری؛ جدا از پیام‌های مربوط به سفارش)." : "I agree to receive marketing SMS (optional; separate from order updates)."}</span></label>
                   </div>
                 </div>
 
@@ -416,9 +447,14 @@ export default function CheckoutPage() {
                                     {line.variantLabel[language]}
                                   </span>
                                 ) : null}
+                                {line.selectedOptions?.map((option) => (
+                                  <span key={option.id} className="mt-0.5 block text-xs font-bold text-bun-muted">
+                                    {option.label[language]}
+                                  </span>
+                                ))}
                               </span>
                               <span className="shrink-0 font-black text-bun-text">
-                                {formatPrice(line.price * line.quantity, language)}
+                                {formatPrice(cartLineUnitPrice(line) * line.quantity, language)}
                               </span>
                             </li>
                             {/* مخلفات همین غذا، تورفته و با برچسب روشن. */}

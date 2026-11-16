@@ -54,14 +54,12 @@ export default function HomeSections() {
         </div>
       </MotionSection>
 
-      {/* «Table Talk»: روایت‌های واقعی مشتریان از دیتابیس پنل (`/api/public/testimonials`).
-          اگر مدیر هیچ روایتی را برای صفحهٔ اصلی انتخاب نکرده باشد، کل بخش پنهان می‌ماند. */}
       <TableTalk />
 
       <MotionSection className="bg-bun-paper pb-20 sm:pb-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div
-            className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-bun-burgundy via-bun-red to-bun-orange px-6 py-12 text-white shadow-2xl shadow-bun-red/15 sm:px-12 sm:py-16 lg:px-16"
+            className="relative overflow-hidden rounded-4xl bg-linear-to-br from-bun-burgundy via-bun-red to-bun-orange px-6 py-12 text-white shadow-2xl shadow-bun-red/15 sm:px-12 sm:py-16 lg:px-16"
             data-reveal="blur-in"
           >
             <div className="absolute -end-20 -top-36 size-72 rounded-full bg-bun-gold/20 blur-3xl" />
@@ -101,12 +99,12 @@ export default function HomeSections() {
           <div className="mt-12 grid gap-10 lg:grid-cols-3" data-reveal-group="">
             {latestBlogPosts.map((post) => (
               <article key={post.id} className="group" data-reveal-item="">
-                <Link to={`/blog/${post.id}`} className="block rounded-[1.5rem] outline-none focus-visible:ring-2 focus-visible:ring-bun-gold focus-visible:ring-offset-4 focus-visible:ring-offset-bun-surface">
+                <Link to={`/blog/${post.id}`} className="block rounded-3xl outline-none focus-visible:ring-2 focus-visible:ring-bun-gold focus-visible:ring-offset-4 focus-visible:ring-offset-bun-surface">
                   <ResponsiveImage
                     src={post.image}
                     alt={post.imageAlt[language]}
                     sizes="(max-width: 1024px) 100vw, 33vw"
-                    className="aspect-[16/11] rounded-[1.5rem]"
+                    className="aspect-16/11 rounded-3xl"
                     imageClassName="transition-transform duration-500 group-hover:scale-[1.04]"
                   />
                 </Link>
@@ -124,7 +122,7 @@ export default function HomeSections() {
       <MotionSection className="bg-bun-paper py-20 sm:py-28">
         <div className="mx-auto grid max-w-5xl items-center gap-12 px-4 sm:px-6 md:grid-cols-[1fr_auto] lg:px-8">
           <div className="max-w-xl" data-reveal-group="">
-            <div className="mb-5 inline-flex size-12 items-center justify-center rounded-2xl bg-bun-orange/12 text-bun-accent" data-reveal-item="">
+            <div className="mb-5 inline-flex size-12 items-center justify-center rounded-4xlxl bg-bun-orange/12 text-bun-accent" data-reveal-item="">
               <QrCode className="size-6" aria-hidden="true" />
             </div>
             <MotionText text={t("home.qrTitle")} className="section-title" />
@@ -152,7 +150,7 @@ export default function HomeSections() {
         <div className="mx-auto grid max-w-[1600px] lg:grid-cols-2">
           <div className="flex items-center px-4 py-16 sm:px-10 lg:px-16 lg:py-24 xl:px-24">
             <div className="max-w-xl" data-reveal-group="">
-              <p className="section-kicker !text-bun-orange" data-reveal-item="">{t("home.locationKicker")}</p>
+              <p className="section-kicker text-bun-orange!" data-reveal-item="">{t("home.locationKicker")}</p>
               <MotionText text={t("home.locationTitle")} className="section-title mt-3 text-white" />
               <div className="mt-8 space-y-5 text-white/75" data-reveal-item="">
                 <p className="flex items-start gap-3 leading-7"><MapPin className="mt-1 size-5 shrink-0 text-bun-orange" aria-hidden="true" /> {t("home.address")}</p>

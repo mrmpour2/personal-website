@@ -1,6 +1,5 @@
 import type {
   BlogPost,
-  Language,
   LoyaltyTier,
   MenuCategory,
   MenuItem,
@@ -10,6 +9,7 @@ import type {
 } from "@/types";
 import { SnappFoodIcon } from "@/components/SnappFoodIcon"; 
 import { InstagramIcon } from "@/components/InstagramIcon";
+export { formatPrice } from "@/utils/formatPrice";
 
 
 
@@ -520,21 +520,11 @@ export function progressToNextTier(points: number): { current: number; target: n
 }
 
 
-export const formatPrice = (price: number, language: Language): string => {
-  const formatted = new Intl.NumberFormat(language === "fa" ? "fa-IR" : "en-US").format(price);
-  return language === "fa" ? `${formatted} تومان` : `${formatted} Toman`;
-};
-
 /* ---------------------------------------------------------------------------
  * Derived views.
  * Built once at module scope so components never re-scan the arrays on render
  * (vercel-react-best-practices: "avoid redundant computation in render").
 --------------------------------------------------------------------------- */
-
-/** O(1) product lookup for `/menu/:id`. */
-export const menuItemById: ReadonlyMap<string, MenuItem> = new Map(
-  menuItems.map((item): [string, MenuItem] => [item.id, item]),
-);
 
 /** O(1) story lookup for `/blog/:id`. */
 export const blogPostById: ReadonlyMap<string, BlogPost> = new Map(
@@ -628,48 +618,6 @@ export function priceRange(item: MenuItem): { min: number; max: number } {
 export function priceForVariant(item: MenuItem, variantKey?: string | null): number {
   const chosen = findVariant(item, variantKey) ?? defaultVariant(item);
   return chosen?.price ?? item.price;
-}
-
-/* ---------------------------------------------------------------------------
- * Live API merge
- * `/api/public/menu` returns the restaurant's real products; the curated array
- * above stays the source of verified photography, bilingual copy and scores.
- * Merging keeps both without showing the same dish twice.
---------------------------------------------------------------------------- */
-
-/** Folds Persian half-spaces, dashes and whitespace so "اسموکی اسمش" === "اسموکیاسمش". */
-function normalizeDishName(value: string): string {
-  return value.replace(/[\s\u200c\u200e\u200f\-_.]+/g, "").toLowerCase();
-}
-
-/**
- * Curated items win: they ship verified imagery and bilingual copy, so a live
- * product with the same name or slug is dropped instead of duplicated.
- * Everything the dashboard added on top is appended after them.
- */
-export function mergeCatalogItems(
-  catalog: readonly MenuItem[],
-  live: readonly MenuItem[],
-): MenuItem[] {
-  const seen = new Set<string>();
-  const merged: MenuItem[] = [];
-
-  for (const item of catalog) {
-    merged.push(item);
-    seen.add(item.id);
-    seen.add(normalizeDishName(item.name.en));
-    seen.add(normalizeDishName(item.name.fa));
-  }
-
-  for (const item of live) {
-    const name = normalizeDishName(item.name.fa);
-    if (seen.has(item.id) || seen.has(name)) continue;
-    seen.add(item.id);
-    seen.add(name);
-    merged.push(item);
-  }
-
-  return merged;
 }
 
 /* ---------------------------------------------------------------------------

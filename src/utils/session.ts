@@ -1,11 +1,6 @@
 /**
- * شناسه نشست مهمان.
- *
- * یک مقدار تصادفی که در `localStorage` نگه داشته می‌شود و هم گفتگوی دستیار
- * (`POST /api/chat`) و هم سفارش‌های ثبت‌شده را به یک «مکالمه» در پنل وصل می‌کند
- * (بک‌اند با همین `sessionId` سفارش را به گفتگو لینک می‌کند).
- *
- * قالب مقدار باید با اعتبارسنجی بک‌اند جور باشد: ۲۰ تا ۱۰۰ کاراکتر `[\w-]`.
+ * Legacy anonymous cart-snapshot key. It is sent only to the aggregate cart
+ * analytics endpoint and must never authorize chat access or order attribution.
  */
 const SESSION_KEY = "store-chat-session-id";
 const SESSION_PATTERN = /^[\w-]{20,100}$/;

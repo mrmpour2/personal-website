@@ -12,6 +12,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { useSmoothScrollPause } from "@/hooks/useSmoothScrollPause";
 import { useModalFocus } from "@/hooks/useModalFocus";
 import type { MenuItem } from "@/types";
+import { calculateAddOnSubtotal } from "@/utils/orderPricing";
 
 /**
  * پنل «مخلفات پیشنهادی» (Smart Add-ons).
@@ -126,7 +127,7 @@ export function AddOnSheet() {
   const quantityOf = (item: MenuItem) => picked[item.productId ?? item.id] ?? 0;
   const pickedCount = addOns.reduce((sum, item) => sum + quantityOf(item), 0);
   const baseTotal = parentLine ? parentLine.price * parentLine.quantity : 0;
-  const addOnTotal = addOns.reduce((sum, item) => sum + item.price * quantityOf(item), 0);
+  const addOnTotal = calculateAddOnSubtotal(addOns, picked);
   const finalTotal = baseTotal + addOnTotal;
   const hasPicks = pickedCount > 0;
 

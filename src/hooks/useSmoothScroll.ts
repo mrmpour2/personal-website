@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { startSmoothScroll } from "@/motion/smoothScroll";
 
 /**
  * Mounts the Lenis smooth-scroll loop for the lifetime of the app.

@@ -289,6 +289,15 @@ html.has-motion [data-image-reveal] {
 }
 
 /* Reduced motion preferences */
+@keyframes live-campaign-in {
+  from { opacity: 0; transform: translateY(-100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.live-campaign-banner {
+  animation: live-campaign-in 320ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   *,
@@ -301,9 +310,3 @@ html.has-motion [data-image-reveal] {
   }
 }
 
-/* Print styles */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-}

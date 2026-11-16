@@ -32,6 +32,7 @@ export interface OrderLineInput {
    * واریانت را از دیتابیس می‌خواند، پس قیمت سمت مرورگر مرجع نیست.
    */
   variantId?: string;
+  selectedOptionIds?: string[];
   quantity: number;
   /**
    * برای ردیف‌های مخلفات: اشاره به قلم اصلی همین سفارش (شناسه محصول + سایز).
@@ -42,12 +43,20 @@ export interface OrderLineInput {
 }
 
 export interface CreateOrderInput {
-  sessionId?: string;
+  /** Anonymous cart analytics key only; it is never used for chat ownership. */
+  cartSnapshotSessionId?: string;
+  /** Untrusted attribution hint; the API accepts it only for the cookie-owned session. */
+  chatConversationId?: string;
   idempotencyKey: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string;
   shippingAddress: string;
+  marketingConsent?: boolean;
+  couponCode?: string;
+  campaignOfferId?: string;
+  upsellCampaignId?: string;
+  upsellTierIndex?: number;
   items: OrderLineInput[];
 }
 
@@ -65,6 +74,16 @@ export interface CreatedOrder {
 /** پیکربندی پرداخت؛ سرور تعیین می‌کند کدام روش‌ها فعال‌اند. */
 export async function fetchPaymentConfig(): Promise<PaymentConfig> {
   const { data } = await apiClient.get<PaymentConfig>("/payment/config");
+  return data;
+}
+
+export interface CheckoutCampaignOffers {
+  mission: null | { campaignId: string; campaignName: string; offerId: string; type: string; rewardName: string; expiresAt: string };
+  upsell: null | { campaignId: string; tierIndex: number; thresholdToman: number; remainingToman: number; rewardName: string; rewardType: "PRODUCT" | "DISCOUNT" };
+}
+
+export async function fetchCheckoutCampaignOffers(subtotalToman: number): Promise<CheckoutCampaignOffers> {
+  const { data } = await apiClient.get<CheckoutCampaignOffers>(`/public/campaign-offers?subtotalToman=${Math.max(0, Math.round(subtotalToman))}`, { withCredentials: true });
   return data;
 }
 
@@ -101,8 +120,26 @@ export async function verifyCheckoutOtp(phone: string, challengeId: string, code
   await apiClient.post("/payment/otp/verify", { phone, challengeId, code, captchaToken }, { withCredentials: true });
 }
 export async function readCheckoutOrder(orderId: string) {
-  const { data } = await apiClient.get<{ order: { id: string; status: string; expiresAt: string } }>(`/payment/orders/${encodeURIComponent(orderId)}`, { withCredentials: true });
+  const { data } = await apiClient.get<{ order: CheckoutOrderDetails }>(`/payment/orders/${encodeURIComponent(orderId)}`, { withCredentials: true });
   return data.order;
+}
+
+export interface CheckoutOrderDetails {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentMethod: PaymentMethod | null;
+  customerName: string;
+  customerPhone: string;
+  shippingAddress: string;
+  subtotalAmount: number;
+  deliveryFeeAmount: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  createdAt: string;
+  expiresAt: string | null;
+  items: Array<{ id: string; productName: string; imageUrl: string | null; quantity: number; unitPrice: number; variantLabel: string | null; selectedOptions: Array<{ label: string; priceDelta?: number }> | null; parentItemId: string | null }>;
 }
 export async function cancelCheckoutOrder(orderId: string) {
   await apiClient.post(`/payment/orders/${encodeURIComponent(orderId)}/cancel`, {}, { withCredentials: true });

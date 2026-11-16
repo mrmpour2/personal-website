@@ -61,6 +61,7 @@ export interface ReviewLike {
 /** قالب شمارهٔ سفارش پنل: `WEB-…-…` (پرداخت آنلاین) یا `ORD-…-…` (سفارش داخلی). */
 const ORDER_NUMBER_PATTERN = /^[A-Z0-9]{2,4}-[A-Z0-9]{1,20}-[A-Z0-9]{4,12}$/;
 
+// eslint-disable-next-line no-control-regex -- Intentionally strips unsafe control characters from user input.
 const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 const dateFormatters = new Map<Language, Intl.DateTimeFormat>();

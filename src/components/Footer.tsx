@@ -1,4 +1,4 @@
-import { Camera, MapPin, Navigation, Phone } from "lucide-react";
+import { MapPin, Navigation, Phone } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { LazyMount } from "@/components/LazyMount";
